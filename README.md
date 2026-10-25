@@ -3,7 +3,7 @@
 ## Folders
 
 - moment-demo/: Complete working browser demo, including JavaScript source, CSS, HTML, logo, tests, documentation and Sites hosting configuration.
-- mobile-starter/: Existing Expo / React Native starter project. This is an unimplemented starter, not the native version of the working demo.
+- mobile-starter/: Expo Go app for iPhone. Same five tabs and flows as the web demo, saved on the device.
 
 ## Run the working demo
 
@@ -19,9 +19,16 @@ Requires Node.js. From moment-demo/ run:
 
     node tests/demo.test.cjs
 
-## Mobile starter
+## Mobile app (Expo Go)
 
-From mobile-starter/, install the dependencies using npm ci, then use npm start. The starter is included as-is and has not been implemented or validated as a Moment mobile app.
+The iPhone app lives in `mobile-starter/`. It is the same Moment demo: Today, To Do, Features, Memories, and Us. Answers stay on the phone. Pairing and partner replies are still a local sample (the partner code is `MOMENT`).
+
+1. Install the free **Expo Go** app from the App Store. Use a current Expo Go, because this project is Expo SDK 58.
+2. On a computer, open `mobile-starter` and install dependencies with `npm ci` if you have not already.
+3. Run `npx expo start --tunnel`.
+4. Scan the QR code with the iPhone camera, then open Moment in Expo Go.
+
+Alexa and Ben each do this on their own phone. Nothing is sent between the phones.
 
 ## Scope
 
