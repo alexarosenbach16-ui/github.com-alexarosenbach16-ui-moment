@@ -14,6 +14,9 @@ import {
   shiftDay,
   streak,
   submit,
+  historyLines,
+  normalizeState,
+  setCheckInMood,
   submitReflection,
   suggestedTasks,
   toggleTask,
@@ -24,7 +27,7 @@ import {
   withWellbeing,
   writeReflection,
 } from '@/data/logic';
-import type { AppState, Wellbeing } from '@/data/types';
+import type { AppState, TabId, Wellbeing } from '@/data/types';
 
 function eq(actual: unknown, expected: unknown, message: string) {
   if (actual !== expected) {
@@ -135,9 +138,22 @@ state = savedTask.state;
 eq(state.todos.length, 2, 'task added');
 eq(state.todos[1].title, 'A gentle check-in', 'title trimmed');
 eq(state.todos[1].owner, 'me', 'personal task');
+eq(state.tab, 'today', 'saving a task stays on Today');
 eq(streak(state), untouched, 'adding a task does not change streak');
-ok(validState({ ...initialState(), tab: 'todo' }), 'todo tab is valid');
+const legacyTodo = { ...initialState(), tab: 'todo' as TabId, answer: 'still here' };
+ok(validState(legacyTodo), 'legacy todo tab still loads');
+eq(normalizeState(legacyTodo).tab, 'today', 'a saved To Do tab opens on Today');
+eq(normalizeState(legacyTodo).answer, 'still here', 'a legacy tab keeps saved answers');
+eq(normalizeState({ ...initialState(), tab: 'features' as TabId }).tab, 'today', 'a saved Features tab opens on Today');
+eq(normalizeState({ ...initialState(), tab: 'memories' as TabId }).tab, 'us', 'a saved Memories tab opens on Us');
 eq(FEATURE_CATALOG.length, 8, 'eight optional features');
+const checked = setCheckInMood(initialState(new Date('2026-10-25T12:00:00')), 'Okay');
+eq(checked.wellbeingByDay[checked.date].mood, 'Okay', 'mood check-in is saved');
+eq(checked.wellbeingByDay[checked.date].share.mood, false, 'mood check-in stays private');
+const lines = historyLines(checked);
+eq(lines[0].kind, 'checkin', 'newest check-in leads History');
+ok(lines.slice(1).every((line) => line.kind === 'answer'), 'past answers follow the check-in');
+ok(lines.every((line, index) => index === 0 || line.date <= lines[index - 1].date), 'history is in date order');
 
 state = initialState(new Date('2026-10-25T12:00:00'));
 state = { ...state, date: '2026-10-25' };

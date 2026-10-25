@@ -204,8 +204,5 @@ export const PAIR_CODE = 'MOMENT';
 
 export const TABS: { id: TabId; icon: IconName; label: string }[] = [
   { id: 'today', icon: 'sun', label: 'Today' },
-  { id: 'todo', icon: 'action', label: 'To Do' },
-  { id: 'features', icon: 'spark', label: 'Features' },
-  { id: 'memories', icon: 'memories', label: 'Memories' },
   { id: 'us', icon: 'us', label: 'Us' },
 ];
