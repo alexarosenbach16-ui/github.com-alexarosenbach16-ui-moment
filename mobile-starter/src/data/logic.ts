@@ -24,7 +24,13 @@ import type {
 } from '@/data/types';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const TABS: TabId[] = ['today', 'todo', 'features', 'memories', 'us'];
+const SAVED_TABS = ['today', 'us', 'todo', 'features', 'memories'];
+
+/** Older builds saved five tabs. Memories opens on Us; the task and feature tabs open on Today. */
+export function visibleTab(tab: string): TabId {
+  if (tab === 'us' || tab === 'memories') return 'us';
+  return 'today';
+}
 
 export function dateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -98,7 +104,8 @@ export function validState(value: unknown): value is AppState {
   const s = value as AppState;
   return (
     s.version === 1 &&
-    TABS.includes(s.tab) &&
+    typeof s.tab === 'string' &&
+    SAVED_TABS.includes(s.tab) &&
     typeof s.date === 'string' &&
     DATE.test(s.date) &&
     Number.isInteger(s.index) &&
@@ -247,7 +254,7 @@ export function normalizeState(raw: AppState): AppState {
     version: 1,
     me: raw.me,
     partner: raw.partner,
-    tab: raw.tab,
+    tab: visibleTab(String(raw.tab)),
     date: raw.date,
     index: raw.index,
     answer: raw.answer,
@@ -381,7 +388,83 @@ export function saveTask(
     suggestion: prev?.suggestion,
   };
   const todos = prev ? state.todos.map((t) => (t.id === prev.id ? task : t)) : [...state.todos, task];
-  return { state: { ...state, todos, tab: 'todo' } };
+  return { state: { ...state, todos, tab: 'today' } };
+}
+
+export function setCheckInMood(state: AppState, mood: string): AppState {
+  if (!(WELLBEING_MOODS as readonly string[]).includes(mood)) return state;
+  const current = wellbeingFor(state);
+  if (current.mood === mood) return state;
+  return withWellbeing(state, state.date, { ...current, mood, share: { ...current.share } });
+}
+
+export type HistoryLine = {
+  id: string;
+  date: string;
+  kind: 'answer' | 'checkin' | 'reflection' | 'debrief';
+  title: string;
+  detail: string;
+  memoryDate?: string;
+  debriefId?: string;
+  reflectionKey?: string;
+};
+
+export function historyLines(state: AppState): HistoryLine[] {
+  const lines: HistoryLine[] = [];
+  const answered = new Set(state.history.map((item) => item.date));
+  for (const item of state.history) {
+    lines.push({
+      id: 'answer-' + item.date,
+      date: item.date,
+      kind: 'answer',
+      title: catalog[item.index]?.title ?? 'Daily question',
+      detail: item.me,
+      memoryDate: item.date,
+    });
+  }
+  if (state.answer && !answered.has(state.date)) {
+    lines.push({
+      id: 'answer-' + state.date,
+      date: state.date,
+      kind: 'answer',
+      title: catalog[state.index]?.title ?? 'Daily question',
+      detail: state.answer,
+    });
+  }
+  for (const [date, wellbeing] of Object.entries(state.wellbeingByDay)) {
+    if (!DATE.test(date) || (!wellbeing.mood && !wellbeing.need.trim())) continue;
+    lines.push({
+      id: 'checkin-' + date,
+      date,
+      kind: 'checkin',
+      title: 'Check-in',
+      detail: [wellbeing.mood, wellbeing.need.trim()].filter(Boolean).join(' · '),
+    });
+  }
+  for (const [key] of revealedReflections(state)) {
+    lines.push({
+      id: 'reflection-' + key,
+      date: key,
+      kind: 'reflection',
+      title: 'Sunday reflection',
+      detail: 'A little look back',
+      reflectionKey: key,
+    });
+  }
+  for (const debrief of state.debriefs) {
+    lines.push({
+      id: 'debrief-' + debrief.id,
+      date: debrief.date,
+      kind: 'debrief',
+      title: debrief.title || 'Hangout note',
+      detail: 'After time together',
+      debriefId: debrief.id,
+    });
+  }
+  return lines.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0;
+  });
 }
 
 export function chosenFeatures(state: AppState): string[] {

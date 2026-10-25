@@ -202,14 +202,7 @@ function Tools() {
         ) : (
           <PrimaryButton label="Back to our Moment" onPress={app.closeModal} />
         )}
-        <SecondaryButton
-          label={app.sundayPreview ? 'End Sunday preview' : 'Preview Sunday reflection'}
-          onPress={() => {
-            app.setSundayPreview(!app.sundayPreview);
-            app.closeModal();
-            app.goTab('today');
-          }}
-        />
+        <SecondaryButton label="Preview Sunday reflection" onPress={() => app.openWeekly()} />
         <SecondaryButton label="Preview welcome & pairing" onPress={() => app.setModal({ name: 'welcome' })} />
         <QuietButton label="Reset all demo data" onPress={() => app.setModal({ name: 'reset' })} />
       </View>

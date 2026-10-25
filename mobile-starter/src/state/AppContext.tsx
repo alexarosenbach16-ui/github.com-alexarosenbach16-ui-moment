@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AppState as AppLifecycle } from 'react-native';
 
@@ -15,6 +15,7 @@ import {
   savePause,
   saveSupportNeed,
   saveTask,
+  setCheckInMood,
   setDevice,
   submit,
   submitReflection,
@@ -80,6 +81,8 @@ type AppApi = {
   saveSupport: (need: string, when: string) => void;
   openPlan: (preset?: { title: string; owner: TaskOwner; note: string }) => void;
   openWeekly: (key?: string) => void;
+  openHistory: () => void;
+  setTodayMood: (mood: string) => void;
 };
 
 const Ctx = createContext<AppApi | null>(null);
@@ -257,7 +260,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(result.state);
     setTodoFilter('all');
     setModal(null);
-    router.navigate('/todo');
+    router.navigate('/');
     showToast('Saved to your list. Your shared streak is unchanged.');
     return null;
   };
@@ -404,6 +407,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setModal({ name: 'weekly', key });
   };
 
+  const openHistory = () => {
+    router.push('/history' as Href);
+  };
+
+  const setTodayMood = (mood: string) => {
+    const current = latest.current;
+    if (!current) return;
+    const next = setCheckInMood(current, mood);
+    if (next !== current) setState(next);
+  };
+
   const api: AppApi = {
     ready,
     storageOk,
@@ -452,6 +466,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveSupport,
     openPlan,
     openWeekly,
+    openHistory,
+    setTodayMood,
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

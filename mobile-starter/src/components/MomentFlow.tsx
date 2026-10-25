@@ -41,7 +41,7 @@ export function MomentFlow({ record }: { record?: HistoryItem }) {
             <Text style={styles.footer}>{streak(state)} days of little moments. Here’s to more.</Text>
             <PartnerStrip />
             <View style={{ marginTop: 12 }}>
-              <SecondaryButton label="Visit our Memories" icon="arrow" onPress={() => { app.closeModal(); app.goTab('memories'); }} />
+              <SecondaryButton label="See our History" icon="arrow" onPress={() => { app.closeModal(); app.openHistory(); }} />
             </View>
             <DemoHint text="Want to explore another kind of Moment?" action="Try the next demo day" onPress={app.nextDay} />
           </View>

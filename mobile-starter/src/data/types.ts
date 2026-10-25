@@ -1,4 +1,4 @@
-export type TabId = 'today' | 'todo' | 'features' | 'memories' | 'us';
+export type TabId = 'today' | 'us';
 
 export type IconName =
   | 'sun'
