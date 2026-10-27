@@ -94,9 +94,13 @@ type AppApi = {
   openOnboarding: () => void;
   setTodayMood: (mood: string) => void;
   finishOnboarding: (input: { tags: string[]; name?: string }) => void;
-  markPaired: () => void;
+  markPaired: (code?: string) => void;
   setReminderTime: (value: string) => void;
   setCancelReason: (reason: string) => void;
+  setPlanChoice: (choice: '' | 'year' | 'month') => void;
+  togglePlus: () => void;
+  saveAppreciation: (text: string) => void;
+  saveBonus: (text: string) => void;
   repairYesterday: (text: string) => void;
   releaseToday: () => void;
   previewWait: () => void;
@@ -454,8 +458,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => (prev ? completeOnboarding(prev, input) : prev));
   };
 
-  const pairCouple = () => {
-    setState((prev) => (prev ? markPaired(prev) : prev));
+  const pairCouple = (code = '') => {
+    setState((prev) => (prev ? markPaired(prev, code) : prev));
+  };
+
+  const setPlanChoice = (choice: '' | 'year' | 'month') => {
+    setState((prev) => (prev ? { ...prev, planChoice: choice } : prev));
+  };
+
+  const togglePlus = () => {
+    const current = latest.current;
+    if (!current) return;
+    const isPlus = !current.isPlus;
+    setState({ ...current, isPlus });
+    showToast(isPlus ? 'Plus preview on. Just for this phone.' : 'Back to the free plan.');
+  };
+
+  const saveAppreciation = (text: string) => {
+    const value = text.trim().slice(0, 80);
+    if (!value) return;
+    setState((prev) => (prev ? { ...prev, appreciation: value } : prev));
+    setModal(null);
+  };
+
+  const saveBonus = (text: string) => {
+    const current = latest.current;
+    if (!current?.isPlus) return;
+    const value = text.trim().slice(0, 80);
+    if (!value) return;
+    setState({ ...current, bonusAnswer: value });
+    setModal(null);
   };
 
   const setReminderTime = (value: string) => {
@@ -568,6 +600,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     markPaired: pairCouple,
     setReminderTime,
     setCancelReason,
+    setPlanChoice,
+    togglePlus,
+    saveAppreciation,
+    saveBonus,
     repairYesterday,
     releaseToday,
     previewWait,

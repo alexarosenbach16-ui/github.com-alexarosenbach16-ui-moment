@@ -21,7 +21,7 @@ Requires Node.js. From moment-demo/ run:
 
 ## Mobile app (Expo Go)
 
-The iPhone app lives in `mobile-starter/`. Today is a short checklist: the daily question, a mood check-in, and one shared to-do, plus an invite until you pair. Us holds profiles, pairing, and five settings rows. History groups answers by month and opens a year recap. Questions rotate without repeats, lean toward the tags picked in onboarding, and mix lighter and deeper prompts. One open day each week can stay in the streak as a grace day. Yesterday’s question can be answered within 48 hours. The sample partner is Ben and the code is `MOMENT`. Answers stay on the phone.
+The iPhone app lives in `mobile-starter/`. Today is a short checklist: the daily question, a mood check-in, and one free appreciation, plus an invite until you pair. Us holds profiles, pairing, a personal invite link, and five settings rows. Free History shows the last 30 days and keeps older Moments. Moment Plus is an unpaid preview for shared to-dos, bonus questions, date ideas, the year recap, full History, and extra Moments. Questions rotate without repeats, lean toward the tags picked in onboarding, and mix lighter and deeper prompts. One open day each week can stay in the streak as a grace day. Yesterday’s question can be answered within 48 hours. The sample partner is Ben and the sample code is `MOMENT`. Answers stay on the phone.
 
 1. Install the free **Expo Go** app from the App Store. Use a current Expo Go, because this project is Expo SDK 58.
 2. On a computer, open `mobile-starter` and install dependencies with `npm ci` if you have not already.

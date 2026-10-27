@@ -3,6 +3,7 @@ import {
   FEATURE_CATALOG,
   FOCUS_OPTIONS,
   FOUNDATIONS,
+  PAIR_CODE,
   SAMPLE_REFLECTION_PARTNER,
   TASK_IDEAS,
   WELLBEING_MOODS,
@@ -99,6 +100,12 @@ export function initialState(now = new Date()): AppState {
     lastOpened: day,
     welcomeBackFor: '',
     cancelReason: '',
+    isPlus: false,
+    inviteCode: inviteCodeFor('Alexa', 'Ben'),
+    pairedWithCode: '',
+    appreciation: '',
+    bonusAnswer: '',
+    planChoice: '',
     todos: [],
     history: [],
     selectedFeatures: [],
@@ -286,6 +293,12 @@ export function normalizeState(raw: AppState): AppState {
     lastOpened: typeof raw.lastOpened === 'string' && DATE.test(raw.lastOpened) ? raw.lastOpened : raw.date,
     welcomeBackFor: typeof raw.welcomeBackFor === 'string' ? raw.welcomeBackFor : '',
     cancelReason: typeof raw.cancelReason === 'string' ? raw.cancelReason.slice(0, 80) : '',
+    isPlus: raw.isPlus === true,
+    inviteCode: typeof raw.inviteCode === 'string' && /^[A-Z0-9]{4,8}$/.test(raw.inviteCode) ? raw.inviteCode : inviteCodeFor(raw.me, raw.partner),
+    pairedWithCode: cleanPairCode(typeof raw.pairedWithCode === 'string' ? raw.pairedWithCode : ''),
+    appreciation: typeof raw.appreciation === 'string' ? raw.appreciation.slice(0, 80) : '',
+    bonusAnswer: typeof raw.bonusAnswer === 'string' ? raw.bonusAnswer.slice(0, 80) : '',
+    planChoice: raw.planChoice === 'year' || raw.planChoice === 'month' ? raw.planChoice : '',
     history: raw.history.map((item) => ({ ...item, reactions: typeof item.reactions === 'number' ? item.reactions : 0, repaired: !!item.repaired })),
     focus,
     todos,
@@ -331,6 +344,60 @@ export function streakInfo(state: AppState): StreakInfo {
 
 export function streak(state: AppState): number {
   return streakInfo(state).count;
+}
+
+const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+export function inviteCodeFor(me: string, partner: string): string {
+  let n = 7;
+  const source = `${me.trim().toLowerCase()}|${partner.trim().toLowerCase()}|moment`;
+  for (let i = 0; i < source.length; i += 1) n = (n * 33 + source.charCodeAt(i)) % 2147483647;
+  let code = '';
+  for (let i = 0; i < 6; i += 1) {
+    code += INVITE_ALPHABET[Math.abs(n) % INVITE_ALPHABET.length];
+    n = Math.floor(Math.abs(n) / INVITE_ALPHABET.length) + 19 + i;
+  }
+  return code;
+}
+
+export function inviteLink(code: string): string {
+  return `https://moment.app/i/${code}`;
+}
+
+export function cleanPairCode(code: string): string {
+  return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+}
+
+export function acceptPairCode(code: string): boolean {
+  const value = cleanPairCode(code);
+  if (value === PAIR_CODE) return true;
+  return /^[A-Z0-9]{4,8}$/.test(value);
+}
+
+export const FREE_HISTORY_DAYS = 30;
+
+/** Free keeps every saved Moment, and shows only the last 30 days. Plus shows the whole list. */
+export function historyWindow(state: AppState): { visible: HistoryItem[]; older: HistoryItem[] } {
+  if (state.isPlus) return { visible: state.history, older: [] };
+  const cutoff = shiftDay(state.date, -(FREE_HISTORY_DAYS - 1));
+  const visible: HistoryItem[] = [];
+  const older: HistoryItem[] = [];
+  for (const item of state.history) {
+    if (item.date >= cutoff) visible.push(item);
+    else older.push(item);
+  }
+  return { visible, older };
+}
+
+export function withPlus(state: AppState, isPlus: boolean): AppState {
+  return { ...state, isPlus };
+}
+
+export function revealShareText(input: { prompt: string; me: string; mine: string; partner: string; theirs: string; includePartner: boolean }): string {
+  const lines = ['Moment', '', input.prompt, '', `${input.me}: ${input.mine}`];
+  if (input.includePartner && input.theirs.trim()) lines.push(`${input.partner}: ${input.theirs}`);
+  lines.push('', 'A little Moment, together.');
+  return lines.join('\n');
 }
 
 export function focusOptions(state: AppState) {
@@ -387,6 +454,8 @@ function rollForward(state: AppState): AppState {
     partnerAnswered: false,
     revealed: false,
     answerSavedAt: 0,
+    appreciation: '',
+    bonusAnswer: '',
     tab: 'today',
   };
   const index = pickQuestion(drafting);
@@ -430,8 +499,9 @@ export function partnerAnswers(state: AppState): AppState {
   return partnerCompletes({ ...state, partnerAnswered: true });
 }
 
-export function markPaired(state: AppState): AppState {
-  return { ...state, paired: true, partnerAnswered: true };
+export function markPaired(state: AppState, code = ''): AppState {
+  const pairedWithCode = cleanPairCode(code) || state.pairedWithCode;
+  return { ...state, paired: true, partnerAnswered: true, pairedWithCode };
 }
 
 export function completeOnboarding(state: AppState, input: { tags: string[]; name?: string }): AppState {

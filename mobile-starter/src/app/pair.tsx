@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PAIR_CODE } from '@/data/catalog';
+import { acceptPairCode } from '@/data/logic';
 import { PrimaryButton, TextField } from '@/components/ui';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
@@ -18,11 +18,11 @@ export default function PairScreen() {
   const partner = app.state?.partner ?? 'Ben';
 
   const join = () => {
-    if (code.trim().toUpperCase() !== PAIR_CODE) {
-      setError('Try MOMENT.');
+    if (!acceptPairCode(code)) {
+      setError('Try MOMENT, or a personal code.');
       return;
     }
-    app.markPaired();
+    app.markPaired(code);
     setDone(true);
   };
 

@@ -383,6 +383,19 @@ export const SAMPLE_PARTNER_UPDATE = {
 
 export const PAIR_CODE = 'MOMENT';
 
+export const DATE_IDEAS = [
+  { title: 'A slow walk', note: 'No destination. Just the two of you.' },
+  { title: 'Coffee, no plans', note: 'Sit a little longer than usual.' },
+  { title: 'One easy dinner', note: 'Something you both already like.' },
+  { title: 'A phone-free hour', note: 'Same room, nothing else to do.' },
+];
+
+export const BONUS_PROMPTS = [
+  { prompt: 'What made you smile today?', chips: ['You', 'A small joke', 'The quiet'] },
+  { prompt: 'One thing you’re glad we did.', chips: ['We talked', 'We made time', 'We laughed'] },
+  { prompt: 'A tiny plan for tomorrow?', chips: ['A text', 'A walk', 'Breakfast'] },
+];
+
 export const ONBOARDING_QUESTIONS: { prompt: string; options: { id: string; label: string }[] }[] = [
   {
     prompt: 'What brings you here?',

@@ -3,8 +3,9 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '@/components/Icon';
 import { catalog } from '@/data/catalog';
-import { prettyDate, streak } from '@/data/logic';
+import { historyWindow, prettyDate, streak } from '@/data/logic';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
 
@@ -15,7 +16,9 @@ export default function HistoryScreen() {
   const state = app.state;
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('');
-  const shared = (state?.history ?? []).filter((item) => item.me.trim());
+  const windowed = state ? historyWindow(state) : { visible: [], older: [] };
+  const shared = windowed.visible.filter((item) => item.me.trim());
+  const momentsShared = (state?.history ?? []).filter((item) => item.me.trim() && item.partner.trim()).length;
   const tags = useMemo(() => {
     const set = new Set<string>();
     for (const item of shared) for (const label of catalog[item.index]?.tags ?? []) set.add(label);
@@ -39,12 +42,15 @@ export default function HistoryScreen() {
       <View style={styles.bar}>
         <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>Back</Text></Pressable>
         <Text style={styles.title}>History</Text>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/recap')}><Text style={styles.link}>Year</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => (state?.isPlus ? router.push('/recap') : app.setModal({ name: 'plus', feature: 'recap' }))} style={styles.year}>
+          {state?.isPlus ? null : <Icon name="lock" size={14} color={colors.primary} />}
+          <Text style={styles.link}>Year</Text>
+        </Pressable>
       </View>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
         <View style={styles.stats}>
           <Stat label="Days together" value={String(state ? streak(state) : 0)} />
-          <Stat label="Moments shared" value={String(shared.filter((item) => item.partner.trim()).length)} />
+          <Stat label="Moments shared" value={String(momentsShared)} />
         </View>
         <TextInput value={query} onChangeText={setQuery} placeholder="Search answers" placeholderTextColor={colors.placeholder} style={styles.search} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tags}>
@@ -79,6 +85,12 @@ export default function HistoryScreen() {
             })}
           </View>
         ))}
+        {windowed.older.length ? (
+          <Pressable accessibilityRole="button" onPress={() => app.setModal({ name: 'plus', feature: 'history' })} style={styles.older}>
+            <Icon name="lock" size={16} color={colors.primary} />
+            <Text style={styles.olderText}>Older Moments are saved, unlock with Plus</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -105,6 +117,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.line },
   back: { color: colors.primary, fontWeight: '700', fontSize: 16 },
+  year: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   link: { color: colors.primary, fontWeight: '700', fontSize: 16 },
   title: { fontFamily: serif, fontSize: 20, color: colors.ink },
   stats: { flexDirection: 'row', gap: 10 },
@@ -118,6 +131,8 @@ const styles = StyleSheet.create({
   tagText: { color: colors.muted },
   tagTextOn: { color: colors.ink, fontWeight: '700' },
   empty: { color: colors.muted, fontSize: 15, marginTop: 8 },
+  older: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.lavender, borderRadius: 14, padding: 14 },
+  olderText: { flex: 1, color: colors.ink, fontSize: 15, lineHeight: 20 },
   month: { marginTop: 8, marginBottom: 8, color: colors.muted, fontWeight: '700', letterSpacing: 0.4 },
   card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.line, padding: 14, marginBottom: 10 },
   date: { color: colors.muted, fontSize: 12, fontWeight: '600' },

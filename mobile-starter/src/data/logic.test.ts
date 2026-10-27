@@ -12,15 +12,21 @@ import {
   sharedDebrief,
   sharedWellbeing,
   shiftDay,
+  acceptPairCode,
+  historyWindow,
+  inviteLink,
+  markPaired,
   pickQuestion,
   preferredDepth,
   releaseDay,
   repairDay,
   repairTarget,
+  revealShareText,
   streak,
   streakInfo,
   submit,
   waitOver,
+  withPlus,
   historyLines,
   normalizeState,
   setCheckInMood,
@@ -275,6 +281,33 @@ state = revealReflection({ ...state, reflections: { ...state.reflections, '2026-
 eq(state.reflections['2026-10-25'].revealed, true, 'reflection revealed');
 eq(streak(state), weeklyStreak, 'weekly flow never alters streak');
 eq(state.history.length, dailyCount, 'weekly flow never alters daily history');
+const freshPlan = initialState(new Date('2026-10-25T12:00:00'));
+eq(freshPlan.isPlus, false, 'the free plan is the default');
+ok(/^[A-Z0-9]{6}$/.test(freshPlan.inviteCode), 'each person has a personal invite code');
+eq(inviteLink(freshPlan.inviteCode), `https://moment.app/i/${freshPlan.inviteCode}`, 'the invite link uses that code');
+ok(acceptPairCode('moment'), 'the sample pairing code still works');
+ok(!acceptPairCode('no'), 'a tiny code is not stored as a pair');
+const joined = markPaired(freshPlan, 'ben12');
+eq(joined.pairedWithCode, 'BEN12', 'the code a partner paired with is stored');
+eq(joined.paired, true, 'pairing still connects the couple');
+const days = Array.from({ length: 40 }, (_, i) => ({ date: shiftDay('2026-10-25', -i), index: 1, me: 'a', partner: 'b' }));
+const seeded = { ...freshPlan, history: days };
+const windowed = historyWindow(seeded);
+eq(windowed.visible.length, 30, 'free history shows the last 30 days');
+eq(windowed.older.length, 10, 'older moments stay out of the free list');
+eq(seeded.history.length, 40, 'the free window does not delete history');
+ok(windowed.visible.every((item) => item.date >= shiftDay('2026-10-25', -29)), 'visible days sit inside the free window');
+ok(windowed.older.every((item) => item.date < shiftDay('2026-10-25', -29)), 'older days are the ones behind Plus');
+eq(streak(seeded), 40, 'the free window does not shorten the shared streak');
+const plus = withPlus(seeded, true);
+eq(historyWindow(plus).visible.length, 40, 'plus shows the full history');
+eq(historyWindow(plus).older.length, 0, 'plus has nothing left behind the window');
+eq(withPlus(plus, false).history.length, 40, 'turning plus off keeps every moment');
+const hidden = revealShareText({ prompt: 'A question', me: 'Alexa', mine: 'hi', partner: 'Ben', theirs: 'secret', includePartner: false });
+ok(!hidden.includes('secret'), 'a share can leave out a partner answer');
+ok(hidden.includes('Alexa: hi'), 'a share keeps your own answer');
+ok(revealShareText({ prompt: 'A question', me: 'Alexa', mine: 'hi', partner: 'Ben', theirs: 'secret', includePartner: true }).includes('Ben: secret'), 'a share can include both answers');
+
 eq(new Date('2026-10-26T12:00:00').getDay() === 0, false, 'monday is not sunday');
 state = { ...state, date: '2026-10-26' };
 eq(reflectionRecord(state).loved[0], 'A thoughtful walk', 'same week keeps the draft');

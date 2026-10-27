@@ -5,7 +5,7 @@ import { Icon } from '@/components/Icon';
 import { FlipAnswer, HeartBurst, SealedCard } from '@/components/Reveal';
 import { ChoiceButton, PrimaryButton, SecondaryButton, TextField } from '@/components/ui';
 import { catalog } from '@/data/catalog';
-import { prettyDate, streak } from '@/data/logic';
+import { prettyDate, revealShareText, streak } from '@/data/logic';
 import type { HistoryItem } from '@/data/types';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
@@ -119,8 +119,9 @@ export function MomentFlow({ record }: { record?: HistoryItem }) {
 function RevealPayoff({ prompt, mine, theirs, me, partner, same, record, date }: { prompt: string; mine: string; theirs: string; me: string; partner: string; same: boolean; record: boolean; date: string }) {
   const app = useApp();
   const [hearts, setHearts] = useState(0);
+  const [includePartner, setIncludePartner] = useState(true);
   const share = () => {
-    void Share.share({ message: `${prompt}\n${me}: ${mine}\n${partner}: ${theirs}\nA little Moment, together.` });
+    void Share.share({ message: revealShareText({ prompt, me, mine, partner, theirs, includePartner }) });
   };
   return (
     <View>
@@ -138,6 +139,23 @@ function RevealPayoff({ prompt, mine, theirs, me, partner, same, record, date }:
           <Text style={styles.heartLabel}>{hearts ? `${hearts} ${hearts === 1 ? 'heart' : 'hearts'}` : 'Send a heart'}</Text>
         </Pressable>
       </View>
+      <View style={styles.shareCard}>
+        <Text style={styles.shareMark}>moment</Text>
+        <Text style={styles.sharePrompt}>{prompt}</Text>
+        <View style={[styles.shareSide, { backgroundColor: colors.blue }]}>
+          <Text style={styles.shareWho}>{me}</Text>
+          <Text style={styles.shareWords}>{mine}</Text>
+        </View>
+        {includePartner ? (
+          <View style={[styles.shareSide, { backgroundColor: colors.lavender }]}>
+            <Text style={styles.shareWho}>{partner}</Text>
+            <Text style={styles.shareWords}>{theirs}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Pressable accessibilityRole="button" accessibilityState={{ selected: includePartner }} onPress={() => setIncludePartner((value) => !value)} style={styles.hideRow}>
+        <Text style={styles.hideText}>{includePartner ? `Hide ${partner}’s answer` : `Include ${partner}’s answer`}</Text>
+      </Pressable>
       <View style={{ marginTop: 12, gap: 10 }}>
         <PrimaryButton label="Share this Moment" icon="arrow" onPress={share} />
         {record ? (
@@ -235,6 +253,14 @@ const styles = StyleSheet.create({
   reactRow: { marginTop: 16, alignItems: 'flex-start' },
   heartButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 22, backgroundColor: colors.lavender },
   heartLabel: { color: colors.ink, fontWeight: '600' },
+  shareCard: { marginTop: 16, backgroundColor: colors.bg, borderRadius: 18, borderWidth: 1, borderColor: colors.line, padding: 16 },
+  shareMark: { fontFamily: serif, fontSize: 18, color: colors.primary },
+  sharePrompt: { fontFamily: serif, fontSize: 20, lineHeight: 26, color: colors.ink, marginTop: 8 },
+  shareSide: { borderRadius: 12, padding: 12, marginTop: 10 },
+  shareWho: { fontSize: 11, fontWeight: '700', color: colors.ink },
+  shareWords: { color: colors.ink, marginTop: 4, lineHeight: 20 },
+  hideRow: { minHeight: 44, justifyContent: 'center' },
+  hideText: { color: colors.primary, fontWeight: '700' },
   modalNote: { textAlign: 'center', color: '#a1a7b7', fontSize: 12, lineHeight: 18, marginTop: 16 },
   strip: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, borderTopWidth: 1, borderTopColor: colors.line, marginTop: 18, paddingTop: 14 },
   status: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },

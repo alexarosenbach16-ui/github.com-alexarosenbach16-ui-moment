@@ -19,6 +19,22 @@ export default function RecapScreen() {
   }
   const favorites = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
   const highlights = moments.slice(0, 3);
+  if (state && !state.isPlus) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        <View style={styles.bar}>
+          <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>Back</Text></Pressable>
+          <Text style={styles.barTitle}>Your year</Text>
+          <View style={{ width: 48 }} />
+        </View>
+        <View style={{ padding: 22, gap: 12 }}>
+          <Text style={styles.title}>Part of Moment Plus</Text>
+          <Text style={styles.copy}>Your year together is saved for later. Today’s Moment is still yours.</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/plus')}><Text style={styles.back}>See Moment Plus</Text></Pressable>
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.bar}>

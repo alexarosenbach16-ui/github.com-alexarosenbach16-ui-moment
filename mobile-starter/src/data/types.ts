@@ -149,6 +149,12 @@ export type AppState = {
   lastOpened: string;
   welcomeBackFor: string;
   cancelReason: string;
+  isPlus: boolean;
+  inviteCode: string;
+  pairedWithCode: string;
+  appreciation: string;
+  bonusAnswer: string;
+  planChoice: '' | 'year' | 'month';
   todos: Task[];
   history: HistoryItem[];
   selectedFeatures: string[];
@@ -191,6 +197,8 @@ export type FeatureItem = {
   description: string;
 };
 
+export type PlusFeature = 'todos' | 'packs' | 'dates' | 'recap' | 'history' | 'extra';
+
 export type ModalState =
   | { name: 'focus'; first: boolean }
   | { name: 'welcome' }
@@ -206,6 +214,10 @@ export type ModalState =
   | { name: 'task'; id?: string; preset?: { title: string; owner: TaskOwner; note: string; due?: string } }
   | { name: 'mood' }
   | { name: 'together' }
+  | { name: 'appreciate' }
+  | { name: 'bonus' }
+  | { name: 'dates' }
+  | { name: 'plus'; feature: PlusFeature }
   | { name: 'reminders' }
   | { name: 'support' }
   | { name: 'foundations' }

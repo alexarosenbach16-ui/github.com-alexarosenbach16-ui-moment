@@ -2,7 +2,8 @@ import { useRouter } from 'expo-router';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PAIR_CODE, catalog } from '@/data/catalog';
+import { catalog } from '@/data/catalog';
+import { inviteLink } from '@/data/logic';
 import { PrimaryButton } from '@/components/ui';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
@@ -12,10 +13,12 @@ export default function InviteScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const partner = app.state?.partner ?? 'Ben';
+  const code = app.state?.inviteCode ?? '';
+  const link = inviteLink(code);
   const prompt = app.state ? catalog[app.state.index].prompt : '';
 
   const share = () => {
-    void Share.share({ message: `Join me on Moment. Pairing code: ${PAIR_CODE}. ${partner} answered today’s question. Pair to see it.` });
+    void Share.share({ message: `Join me on Moment.\n${link}\nPairing code: ${code}` });
   };
 
   return (
@@ -24,7 +27,10 @@ export default function InviteScreen() {
       <Text style={styles.title}>Invite {partner}</Text>
       <Text style={styles.copy}>{partner} answered today’s question. Pair to see it.</Text>
       <Text style={styles.prompt}>{prompt}</Text>
-      <View style={styles.code}><Text style={styles.codeText}>{PAIR_CODE}</Text></View>
+      <Text style={styles.linkLabel}>Your invite link</Text>
+      <Text style={styles.link}>{link}</Text>
+      <View style={styles.code}><Text style={styles.codeText}>{code}</Text></View>
+      <Text style={styles.note}>On this phone, the sample code MOMENT still pairs you.</Text>
       <View style={{ gap: 10, marginTop: 16 }}>
         <PrimaryButton label={`Text ${partner}`} onPress={share} />
         <PrimaryButton label="Enter a code" onPress={() => router.push('/pair')} />
@@ -41,7 +47,10 @@ const styles = StyleSheet.create({
   title: { fontFamily: serif, fontSize: 36, color: colors.ink, marginTop: 12 },
   copy: { color: colors.ink, fontSize: 16, lineHeight: 22, marginTop: 8 },
   prompt: { color: colors.muted, marginTop: 8 },
-  code: { marginTop: 20, backgroundColor: colors.lavender, borderRadius: 16, padding: 18, alignItems: 'center' },
+  linkLabel: { marginTop: 18, color: colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
+  link: { marginTop: 4, color: colors.ink, fontSize: 16 },
+  note: { marginTop: 8, color: colors.muted, fontSize: 13, lineHeight: 18 },
+  code: { marginTop: 12, backgroundColor: colors.lavender, borderRadius: 16, padding: 18, alignItems: 'center' },
   codeText: { fontFamily: serif, fontSize: 32, letterSpacing: 4, color: colors.ink },
   later: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   laterText: { color: colors.muted, fontWeight: '600' },

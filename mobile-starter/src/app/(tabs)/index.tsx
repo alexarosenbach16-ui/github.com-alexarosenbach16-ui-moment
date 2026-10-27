@@ -21,10 +21,13 @@ export default function TodayScreen() {
   const info = streakInfo(state);
   const mood = wellbeingFor(state).mood;
   const todo = todayTodo(state);
+  const third = state.isPlus
+    ? { id: 'together', title: 'Do one thing together', detail: todo?.title || 'Pick one', done: !!todo, action: 'Pick one thing', open: () => app.setModal({ name: 'together' }) }
+    : { id: 'appreciate', title: 'Say one thing you appreciated', detail: state.appreciation ? 'Saved' : '~1 min', done: !!state.appreciation.trim(), action: 'Say it', open: () => app.setModal({ name: 'appreciate' }) };
   const steps = [
     { id: 'answer', title: 'Answer today’s question', detail: state.answer ? 'Saved' : '~1 min', done: !!state.answer, action: 'Answer', open: () => app.setModal({ name: 'moment' }) },
     { id: 'mood', title: 'Check in your mood', detail: mood || 'One tap', done: !!mood, action: 'Check in', open: () => app.setModal({ name: 'mood' }) },
-    { id: 'together', title: 'Do one thing together', detail: todo?.title || 'Pick one', done: !!todo, action: 'Pick one thing', open: () => app.setModal({ name: 'together' }) },
+    third,
   ];
   const doneCount = steps.filter((step) => step.done).length;
   const next = steps.findIndex((step) => !step.done);
@@ -124,6 +127,17 @@ export default function TodayScreen() {
             </View>
           );
         })}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => app.setModal(state.isPlus ? { name: 'bonus' } : { name: 'plus', feature: 'extra' })}
+          style={styles.card}
+        >
+          <View style={styles.extraTitle}>
+            {state.isPlus ? null : <Icon name="lock" size={16} color={colors.primary} />}
+            <Text style={styles.step}>{state.bonusAnswer ? 'Another Moment saved' : 'Another Moment'}</Text>
+          </View>
+          <Text style={styles.detail}>{state.isPlus ? 'A bonus question, if you want one.' : 'Part of Moment Plus'}</Text>
+        </Pressable>
         <Text style={styles.prompt} numberOfLines={2}>{catalog[state.index]?.prompt}</Text>
       </ScrollView>
     </TabScreen>
@@ -161,5 +175,6 @@ const styles = StyleSheet.create({
   repair: { marginTop: 12, backgroundColor: colors.lavender, borderRadius: 18, padding: 16 },
   textBtn: { minHeight: 40, justifyContent: 'center' },
   textBtnLabel: { color: colors.primary, fontWeight: '700' },
+  extraTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   prompt: { marginTop: 16, color: colors.muted, fontSize: 13, lineHeight: 18 },
 });

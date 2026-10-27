@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { TabScreen } from '@/components/ui';
-import { streak } from '@/data/logic';
+import { inviteLink, streak } from '@/data/logic';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
 
@@ -12,6 +12,10 @@ export default function UsScreen() {
   const router = useRouter();
   const state = app.state;
   if (!app.ready || !state) return <View style={styles.fill} />;
+  const link = inviteLink(state.inviteCode);
+  const shareInvite = () => {
+    void Share.share({ message: `Join me on Moment.\n${link}\nPairing code: ${state.inviteCode}` });
+  };
   return (
     <TabScreen>
       <ScrollView contentContainerStyle={styles.content}>
@@ -25,7 +29,11 @@ export default function UsScreen() {
           <Text style={styles.meta}>{streak(state)} days together · {state.paired ? 'Paired' : 'Not paired yet'}</Text>
         </View>
         <Text style={styles.group}>PAIRING</Text>
-        <Row title={state.paired ? `Paired with ${state.partner}` : `Invite ${state.partner}`} detail="Sample code MOMENT" onPress={() => router.push('/invite')} />
+        <Row title={state.paired ? `Paired with ${state.partner}` : `Invite ${state.partner}`} detail={state.pairedWithCode ? `Joined with ${state.pairedWithCode}` : link} onPress={() => router.push('/invite')} />
+        <Pressable accessibilityRole="button" onPress={shareInvite} style={styles.invite}>
+          <Text style={styles.rowTitle}>Your invite code {state.inviteCode}</Text>
+          <Text style={styles.rowDetail}>{link}</Text>
+        </Pressable>
         <Text style={styles.group}>SETTINGS</Text>
         <View style={styles.list}>
           <Row title="History" detail="Answers, search, and your year" onPress={app.openHistory} />
@@ -67,4 +75,5 @@ const styles = StyleSheet.create({
   row: { minHeight: 64, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: '#fff' },
   rowTitle: { fontSize: 16, color: colors.ink },
   rowDetail: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  invite: { marginTop: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, borderRadius: 16, padding: 16 },
 });
