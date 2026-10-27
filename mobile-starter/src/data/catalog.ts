@@ -416,7 +416,7 @@ export const ONBOARDING_QUESTIONS: { prompt: string; options: { id: string; labe
     ],
   },
   {
-    prompt: 'What would help this week?',
+    prompt: 'What would help most this week?',
     options: [
       { id: 'checkin', label: 'Checking in on how we each feel' },
       { id: 'plan', label: 'Planning a date or time together' },
