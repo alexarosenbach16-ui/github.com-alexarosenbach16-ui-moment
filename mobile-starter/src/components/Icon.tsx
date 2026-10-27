@@ -65,6 +65,7 @@ export function Icon({ name, size = 22, color = '#435171' }: Props) {
         </>
       ) : null}
       {name === 'book' ? <Path d="M12 5c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V4c-4-1-7-1-10 1Zm0 0v15" {...stroke} /> : null}
+      {name === 'shield' ? <Path d="M12 3 5 6v6c0 4 3 6.5 7 8 4-1.5 7-4 7-8V6l-7-3Z" {...stroke} /> : null}
     </Svg>
   );
 }

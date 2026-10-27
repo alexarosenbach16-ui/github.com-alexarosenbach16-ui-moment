@@ -1,5 +1,6 @@
 import { Tabs, usePathname } from 'expo-router';
 import { useEffect } from 'react';
+import { Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
@@ -12,6 +13,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { ready, setTabFromRoute } = useApp();
+  const bottomInset = Math.max(insets.bottom, 14);
 
   useEffect(() => {
     if (!ready) return;
@@ -28,11 +30,15 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: 'rgba(255,255,255,0.96)',
           borderTopColor: colors.line,
-          height: 58 + insets.bottom,
-          paddingTop: 6,
-          paddingBottom: Math.max(insets.bottom, 8),
+          height: 76 + bottomInset,
+          paddingTop: 8,
+          paddingBottom: bottomInset,
+          overflow: 'visible',
         },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
+        tabBarLabel: ({ color, children }) => (
+          <Text style={{ color, fontSize: 12, lineHeight: 18, fontWeight: '600', textAlign: 'center', paddingBottom: 2 }}>{children}</Text>
+        ),
+        tabBarItemStyle: { paddingTop: 4, paddingBottom: 4 },
       }}
     >
       {TABS.map((tab) => (

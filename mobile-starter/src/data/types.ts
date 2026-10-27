@@ -16,9 +16,12 @@ export type IconName =
   | 'question'
   | 'choice'
   | 'action'
-  | 'book';
+  | 'book'
+  | 'shield';
 
 export type MomentType = 'Appreciation' | 'Question' | 'Choice' | 'Action' | 'Check-in';
+
+export type QuestionDepth = 'light' | 'deeper';
 
 export type CatalogItem = {
   type: MomentType;
@@ -30,6 +33,9 @@ export type CatalogItem = {
   partner: string;
   sample: string;
   options?: string[];
+  chips?: string[];
+  tags: string[];
+  depth: QuestionDepth;
 };
 
 export type HistoryItem = {
@@ -37,6 +43,8 @@ export type HistoryItem = {
   index: number;
   me: string;
   partner: string;
+  reactions?: number;
+  repaired?: boolean;
 };
 
 export type TaskOwner = 'me' | 'us';
@@ -129,6 +137,24 @@ export type AppState = {
   debriefs: Debrief[];
   focus: string[];
   focusSetupSeen: boolean;
+  onboardingSeen: boolean;
+  paired: boolean;
+  partnerAnswered: boolean;
+  onboardingTags: string[];
+  reminderTime: string;
+  askedIndexes: number[];
+  answerSavedAt: number;
+  waitHours: number;
+  repairHours: number;
+  lastOpened: string;
+  welcomeBackFor: string;
+  cancelReason: string;
+  isPlus: boolean;
+  inviteCode: string;
+  pairedWithCode: string;
+  appreciation: string;
+  bonusAnswer: string;
+  planChoice: '' | 'year' | 'month';
   todos: Task[];
   history: HistoryItem[];
   selectedFeatures: string[];
@@ -171,6 +197,8 @@ export type FeatureItem = {
   description: string;
 };
 
+export type PlusFeature = 'todos' | 'packs' | 'dates' | 'recap' | 'history' | 'extra';
+
 export type ModalState =
   | { name: 'focus'; first: boolean }
   | { name: 'welcome' }
@@ -183,7 +211,14 @@ export type ModalState =
   | { name: 'privacy' }
   | { name: 'reset' }
   | { name: 'memory'; date: string }
-  | { name: 'task'; id?: string; preset?: { title: string; owner: TaskOwner; note: string } }
+  | { name: 'task'; id?: string; preset?: { title: string; owner: TaskOwner; note: string; due?: string } }
+  | { name: 'mood' }
+  | { name: 'together' }
+  | { name: 'appreciate' }
+  | { name: 'bonus' }
+  | { name: 'dates' }
+  | { name: 'plus'; feature: PlusFeature }
+  | { name: 'reminders' }
   | { name: 'support' }
   | { name: 'foundations' }
   | { name: 'wellbeing' }

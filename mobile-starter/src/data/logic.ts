@@ -3,6 +3,7 @@ import {
   FEATURE_CATALOG,
   FOCUS_OPTIONS,
   FOUNDATIONS,
+  PAIR_CODE,
   SAMPLE_REFLECTION_PARTNER,
   TASK_IDEAS,
   WELLBEING_MOODS,
@@ -70,10 +71,10 @@ export function blankReflection(): Reflection {
 
 export function initialState(now = new Date()): AppState {
   const day = dateKey(now);
-  return {
+  const state: AppState = {
     version: 1,
     me: 'Alexa',
-    partner: 'Jamie',
+    partner: 'Ben',
     tab: 'today',
     date: day,
     index: 0,
@@ -87,16 +88,32 @@ export function initialState(now = new Date()): AppState {
     debriefs: [],
     focus: [],
     focusSetupSeen: false,
+    onboardingSeen: false,
+    paired: false,
+    partnerAnswered: false,
+    onboardingTags: [],
+    reminderTime: '20:00',
+    askedIndexes: [],
+    answerSavedAt: 0,
+    waitHours: 24,
+    repairHours: 48,
+    lastOpened: day,
+    welcomeBackFor: '',
+    cancelReason: '',
+    isPlus: false,
+    inviteCode: inviteCodeFor('Alexa', 'Ben'),
+    pairedWithCode: '',
+    appreciation: '',
+    bonusAnswer: '',
+    planChoice: '',
     todos: [],
-    history: Array.from({ length: 6 }, (_, i) => {
-      const index = (i + 1) % catalog.length;
-      const item = catalog[index];
-      return { date: shiftDay(day, -i - 1), index, me: item.sample, partner: item.partner };
-    }),
+    history: [],
     selectedFeatures: [],
     reflections: {},
     pausePlan: null,
   };
+  state.askedIndexes = [...new Set([...state.history.map((item) => item.index), state.index])];
+  return state;
 }
 
 export function validState(value: unknown): value is AppState {
@@ -264,7 +281,25 @@ export function normalizeState(raw: AppState): AppState {
     reminders: !!raw.reminders,
     evening: !!raw.evening,
     focusSetupSeen: !!raw.focusSetupSeen,
-    history: raw.history,
+    onboardingSeen: raw.onboardingSeen === true || !!raw.focusSetupSeen,
+    paired: raw.paired === true,
+    partnerAnswered: raw.partnerAnswered === true,
+    onboardingTags: Array.isArray(raw.onboardingTags) ? raw.onboardingTags.filter((tag): tag is string => typeof tag === 'string').slice(0, 8) : [],
+    reminderTime: typeof raw.reminderTime === 'string' && /^\d{2}:\d{2}$/.test(raw.reminderTime) ? raw.reminderTime : '20:00',
+    askedIndexes: Array.isArray(raw.askedIndexes) ? raw.askedIndexes.filter((index) => Number.isInteger(index) && index >= 0 && index < catalog.length) : [],
+    answerSavedAt: typeof raw.answerSavedAt === 'number' ? raw.answerSavedAt : 0,
+    waitHours: typeof raw.waitHours === 'number' && raw.waitHours > 0 ? raw.waitHours : 24,
+    repairHours: typeof raw.repairHours === 'number' && raw.repairHours > 0 ? raw.repairHours : 48,
+    lastOpened: typeof raw.lastOpened === 'string' && DATE.test(raw.lastOpened) ? raw.lastOpened : raw.date,
+    welcomeBackFor: typeof raw.welcomeBackFor === 'string' ? raw.welcomeBackFor : '',
+    cancelReason: typeof raw.cancelReason === 'string' ? raw.cancelReason.slice(0, 80) : '',
+    isPlus: raw.isPlus === true,
+    inviteCode: typeof raw.inviteCode === 'string' && /^[A-Z0-9]{4,8}$/.test(raw.inviteCode) ? raw.inviteCode : inviteCodeFor(raw.me, raw.partner),
+    pairedWithCode: cleanPairCode(typeof raw.pairedWithCode === 'string' ? raw.pairedWithCode : ''),
+    appreciation: typeof raw.appreciation === 'string' ? raw.appreciation.slice(0, 80) : '',
+    bonusAnswer: typeof raw.bonusAnswer === 'string' ? raw.bonusAnswer.slice(0, 80) : '',
+    planChoice: raw.planChoice === 'year' || raw.planChoice === 'month' ? raw.planChoice : '',
+    history: raw.history.map((item) => ({ ...item, reactions: typeof item.reactions === 'number' ? item.reactions : 0, repaired: !!item.repaired })),
     focus,
     todos,
     debriefs: cleanDebriefs(raw.debriefs),
@@ -275,15 +310,98 @@ export function normalizeState(raw: AppState): AppState {
   };
 }
 
-export function streak(state: AppState): number {
-  const set = new Set(state.history.map((h) => h.date));
-  let d = set.has(state.date) ? state.date : shiftDay(state.date, -1);
-  let n = 0;
-  while (set.has(d) && n < 10000) {
-    n += 1;
-    d = shiftDay(d, -1);
+export type StreakInfo = { count: number; graceDate: string | null };
+
+/** Days both of you answered. One missed day in a Sunday-week is forgiven and does not add to the count. */
+export function streakInfo(state: AppState): StreakInfo {
+  const done = new Set(state.history.filter((item) => item.me.trim() && item.partner.trim()).map((item) => item.date));
+  const usedWeeks = new Set<string>();
+  let day = done.has(state.date) ? state.date : shiftDay(state.date, -1);
+  let count = 0;
+  let graceDate: string | null = null;
+  let pendingGrace: string | null = null;
+  let guard = 0;
+  while (guard < 10000) {
+    guard += 1;
+    if (done.has(day)) {
+      count += 1;
+      if (pendingGrace && !graceDate) graceDate = pendingGrace;
+      pendingGrace = null;
+      day = shiftDay(day, -1);
+      continue;
+    }
+    const week = weekKey(day);
+    if (!usedWeeks.has(week)) {
+      usedWeeks.add(week);
+      pendingGrace = day;
+      day = shiftDay(day, -1);
+      continue;
+    }
+    break;
   }
-  return n;
+  return { count, graceDate };
+}
+
+export function streak(state: AppState): number {
+  return streakInfo(state).count;
+}
+
+export function daysTogetherLabel(count: number): string {
+  return count === 1 ? '1 day together' : `${count} days together`;
+}
+
+const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+export function inviteCodeFor(me: string, partner: string): string {
+  let n = 7;
+  const source = `${me.trim().toLowerCase()}|${partner.trim().toLowerCase()}|moment`;
+  for (let i = 0; i < source.length; i += 1) n = (n * 33 + source.charCodeAt(i)) % 2147483647;
+  let code = '';
+  for (let i = 0; i < 6; i += 1) {
+    code += INVITE_ALPHABET[Math.abs(n) % INVITE_ALPHABET.length];
+    n = Math.floor(Math.abs(n) / INVITE_ALPHABET.length) + 19 + i;
+  }
+  return code;
+}
+
+export function inviteLink(code: string): string {
+  return `https://moment.app/i/${code}`;
+}
+
+export function cleanPairCode(code: string): string {
+  return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+}
+
+export function acceptPairCode(code: string): boolean {
+  const value = cleanPairCode(code);
+  if (value === PAIR_CODE) return true;
+  return /^[A-Z0-9]{4,8}$/.test(value);
+}
+
+export const FREE_HISTORY_DAYS = 30;
+
+/** Free keeps every saved Moment, and shows only the last 30 days. Plus shows the whole list. */
+export function historyWindow(state: AppState): { visible: HistoryItem[]; older: HistoryItem[] } {
+  if (state.isPlus) return { visible: state.history, older: [] };
+  const cutoff = shiftDay(state.date, -(FREE_HISTORY_DAYS - 1));
+  const visible: HistoryItem[] = [];
+  const older: HistoryItem[] = [];
+  for (const item of state.history) {
+    if (item.date >= cutoff) visible.push(item);
+    else older.push(item);
+  }
+  return { visible, older };
+}
+
+export function withPlus(state: AppState, isPlus: boolean): AppState {
+  return { ...state, isPlus };
+}
+
+export function revealShareText(input: { prompt: string; me: string; mine: string; partner: string; theirs: string; includePartner: boolean }): string {
+  const lines = ['Moment', '', input.prompt, '', `${input.me}: ${input.mine}`];
+  if (input.includePartner && input.theirs.trim()) lines.push(`${input.partner}: ${input.theirs}`);
+  lines.push('', 'A little Moment, together.');
+  return lines.join('\n');
 }
 
 export function focusOptions(state: AppState) {
@@ -300,21 +418,75 @@ export function applyFocus(state: AppState, keys: string[]): AppState {
   return next;
 }
 
+export function preferredDepth(asked: number[]): 'light' | 'deeper' {
+  let lights = 0;
+  for (let i = asked.length - 1; i >= 0; i -= 1) {
+    if ((catalog[asked[i]]?.depth ?? 'light') === 'deeper') break;
+    lights += 1;
+  }
+  return lights >= 2 ? 'deeper' : 'light';
+}
+
+export function pickQuestion(state: AppState): number {
+  const asked = new Set(state.askedIndexes);
+  let pool = catalog.map((_, index) => index).filter((index) => !asked.has(index));
+  const exhausted = pool.length === 0;
+  if (exhausted) pool = catalog.map((_, index) => index).filter((index) => index !== state.index);
+  if (!pool.length) pool = [0];
+  const tags = new Set([...state.onboardingTags, ...state.focus]);
+  const tagged = pool.filter((index) => (catalog[index].tags ?? []).some((tag) => tags.has(tag)));
+  const candidates = !exhausted && tagged.length ? tagged : pool;
+  const depth = preferredDepth(state.askedIndexes);
+  const matched = candidates.filter((index) => (catalog[index].depth ?? 'light') === depth);
+  return (matched.length ? matched : candidates)[0];
+}
+
 export function nextMomentIndex(state: AppState): number {
-  const options = focusOptions(state);
-  if (!options.length) return (state.index + 1) % catalog.length;
-  const pool = [...new Set(options.flatMap((f) => f.indexes))];
-  const n = Math.floor(new Date(state.date + 'T12:00:00').getTime() / 86400000);
-  const candidate = pool[n % pool.length];
-  return candidate === state.index ? pool[(n + 1) % pool.length] : candidate;
+  return pickQuestion(state);
+}
+
+function rollForward(state: AppState): AppState {
+  const asked = state.askedIndexes.includes(state.index) ? state.askedIndexes : [...state.askedIndexes, state.index];
+  const date = shiftDay(state.date, 1);
+  const drafting: AppState = {
+    ...state,
+    date,
+    askedIndexes: asked,
+    answer: '',
+    draft: '',
+    partnerDone: false,
+    partnerAnswered: false,
+    revealed: false,
+    answerSavedAt: 0,
+    appreciation: '',
+    bonusAnswer: '',
+    tab: 'today',
+  };
+  const index = pickQuestion(drafting);
+  return { ...drafting, index, askedIndexes: asked.includes(index) ? asked : [...asked, index] };
+}
+
+export function waitOver(state: AppState, now = Date.now()): boolean {
+  if (!state.answer || state.partnerDone || !state.answerSavedAt) return false;
+  return now - state.answerSavedAt >= state.waitHours * 60 * 60 * 1000;
+}
+
+export function releaseDay(state: AppState, now = Date.now()): AppState {
+  if (state.partnerDone) return rollForward(state);
+  if (!waitOver(state, now)) return state;
+  const history = state.history.some((item) => item.date === state.date)
+    ? state.history
+    : [{ date: state.date, index: state.index, me: state.answer, partner: '', reactions: 0 }, ...state.history];
+  return rollForward({ ...state, history });
 }
 
 export function submit(state: AppState): AppState {
   if (state.answer) return state;
   const item = catalog[state.index];
-  const answer = item.type === 'Action' ? item.sample : state.draft.trim();
+  const answer = item.type === 'Action' && !state.draft.trim() ? item.sample : state.draft.trim();
   if (!answer) return state;
-  return { ...state, answer: answer.slice(0, 1200) };
+  const saved = { ...state, answer: answer.slice(0, 140), answerSavedAt: state.answerSavedAt || Date.now() };
+  return saved.partnerAnswered ? partnerCompletes(saved) : saved;
 }
 
 export function partnerCompletes(state: AppState): AppState {
@@ -322,23 +494,83 @@ export function partnerCompletes(state: AppState): AppState {
   const history = state.history.some((r) => r.date === state.date)
     ? state.history
     : [{ date: state.date, index: state.index, me: state.answer, partner: catalog[state.index].partner }, ...state.history];
-  return { ...state, partnerDone: true, history };
+  return { ...state, partnerDone: true, partnerAnswered: true, history };
+}
+
+export function partnerAnswers(state: AppState): AppState {
+  if (state.partnerDone) return state;
+  if (!state.answer) return { ...state, partnerAnswered: true };
+  return partnerCompletes({ ...state, partnerAnswered: true });
+}
+
+export function markPaired(state: AppState, code = ''): AppState {
+  const pairedWithCode = cleanPairCode(code) || state.pairedWithCode;
+  return { ...state, paired: true, partnerAnswered: true, pairedWithCode };
+}
+
+export function completeOnboarding(state: AppState, input: { tags: string[]; name?: string }): AppState {
+  const name = input.name?.trim().slice(0, 24);
+  let next: AppState = {
+    ...state,
+    onboardingSeen: true,
+    focusSetupSeen: true,
+    onboardingTags: input.tags.slice(0, 8),
+    me: name || state.me,
+  };
+  const focusId = input.tags.find((tag) => FOCUS_OPTIONS.some((item) => item.id === tag));
+  if (focusId) next = applyFocus(next, [focusId]);
+  return next;
+}
+
+export function markTodoForToday(state: AppState, id: string): AppState {
+  if (!state.todos.some((task) => task.id === id)) return state;
+  return { ...state, todos: state.todos.map((task) => (task.id === id ? { ...task, due: state.date } : task)) };
+}
+
+export function todayTodo(state: AppState): Task | undefined {
+  return state.todos.find((task) => task.due === state.date);
 }
 
 export function nextDay(state: AppState): AppState {
   if (!state.partnerDone) return state;
-  const date = shiftDay(state.date, 1);
-  const moved = { ...state, date };
+  return rollForward(state);
+}
+
+export function repairTarget(state: AppState, now = new Date()): string | null {
+  const shared = state.history.filter((item) => item.me.trim() && item.partner.trim());
+  const done = new Set(shared.map((item) => item.date));
+  const nowMs = now.getTime();
+  for (let back = 1; back <= 2; back += 1) {
+    const day = shiftDay(state.date, -back);
+    if (done.has(day)) continue;
+    const hadThisDay = state.history.some((item) => item.date === day);
+    const hadAnEarlierDay = shared.some((item) => item.date < day);
+    if (!hadThisDay && !hadAnEarlierDay) continue;
+    const diff = nowMs - new Date(day + 'T12:00:00').getTime();
+    if (diff >= 0 && diff <= state.repairHours * 60 * 60 * 1000) return day;
+  }
+  return null;
+}
+
+export function repairDay(state: AppState, text: string, now = new Date()): AppState {
+  const day = repairTarget(state, now);
+  const answer = text.trim().slice(0, 140);
+  if (!day || !answer) return state;
+  const index = state.history.find((item) => item.date === day)?.index ?? 0;
+  const entry: HistoryItem = { date: day, index, me: answer, partner: catalog[index].partner, reactions: 0, repaired: true };
+  return { ...state, history: [entry, ...state.history.filter((item) => item.date !== day)] };
+}
+
+export function addReaction(state: AppState, date: string): AppState {
   return {
     ...state,
-    date,
-    index: nextMomentIndex(moved),
-    answer: '',
-    draft: '',
-    partnerDone: false,
-    revealed: false,
-    tab: 'today',
+    history: state.history.map((item) => (item.date === date ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item)),
   };
+}
+
+export function daysBetween(from: string, to: string): number {
+  if (!DATE.test(from) || !DATE.test(to)) return 0;
+  return Math.round((new Date(to + 'T12:00:00').getTime() - new Date(from + 'T12:00:00').getTime()) / 86400000);
 }
 
 export function suggestedTasks(state: AppState): Suggestion[] {

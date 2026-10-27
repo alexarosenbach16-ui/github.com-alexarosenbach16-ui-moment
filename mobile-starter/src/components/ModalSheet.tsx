@@ -2,6 +2,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
+import { ToastBanner } from '@/components/ui';
 import { colors, serif } from '@/theme';
 
 export function ModalSheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export function ModalSheet({ title, onClose, children }: { title: string; onClos
               {children}
             </ScrollView>
           </View>
+          <ToastBanner aboveSheet />
         </View>
       </KeyboardAvoidingView>
     </Modal>
