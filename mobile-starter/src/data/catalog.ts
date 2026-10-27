@@ -418,10 +418,10 @@ export const ONBOARDING_QUESTIONS: { prompt: string; options: { id: string; labe
   {
     prompt: 'What would help this week?',
     options: [
-      { id: 'checkin', label: 'A daily check-in' },
-      { id: 'plan', label: 'A plan' },
-      { id: 'space', label: 'Space to talk' },
-      { id: 'fun', label: 'Something fun' },
+      { id: 'checkin', label: 'Checking in on how we each feel' },
+      { id: 'plan', label: 'Planning a date or time together' },
+      { id: 'space', label: 'Talking through something hard' },
+      { id: 'fun', label: 'Laughing and having fun together' },
     ],
   },
   {

@@ -120,9 +120,9 @@ const styles = StyleSheet.create({
   count: { color: colors.muted, fontWeight: '700' },
   title: { fontFamily: serif, fontSize: 36, lineHeight: 42, color: colors.ink },
   copy: { color: colors.muted, fontSize: 16, lineHeight: 22 },
-  option: { minHeight: 64, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, justifyContent: 'center' },
+  option: { minHeight: 64, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'center' },
   optionOn: { backgroundColor: colors.lavender, borderColor: colors.lavender },
-  optionText: { fontSize: 18, color: colors.ink, fontWeight: '600' },
+  optionText: { fontSize: 18, lineHeight: 24, color: colors.ink, fontWeight: '600' },
   times: { gap: 8 },
   time: { color: colors.muted, marginTop: 2 },
 });
