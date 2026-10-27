@@ -18,7 +18,7 @@ import {
   WELLBEING_MOODS,
   catalog,
 } from '@/data/catalog';
-import { dateKey, debriefFields, prettyDate, reflectionRecord, sharedWellbeing, weekKey } from '@/data/logic';
+import { dateKey, debriefFields, prettyDate, reflectionRecord, sharedWellbeing, weekKey, wellbeingFor } from '@/data/logic';
 import type { Debrief, DebriefAnswers, DebriefShare, Wellbeing } from '@/data/types';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
@@ -56,6 +56,9 @@ export function ModalHost() {
       {modal.name === 'weekly' ? <Weekly keyName={modal.key} /> : null}
       {modal.name === 'pause' ? <PauseForm /> : null}
       {modal.name === 'pause-preview' ? <PausePreview /> : null}
+      {modal.name === 'mood' ? <MoodCheck /> : null}
+      {modal.name === 'together' ? <TogetherPick /> : null}
+      {modal.name === 'reminders' ? <Reminders /> : null}
     </ModalSheet>
   );
 }
@@ -106,6 +109,12 @@ function modalTitle(name: string, partner: string, custom?: string): string {
       return 'Pause & reconnect.';
     case 'pause-preview':
       return 'A little room to breathe.';
+    case 'mood':
+      return 'How are you feeling?';
+    case 'together':
+      return 'One thing together';
+    case 'reminders':
+      return 'Reminders';
     default:
       return 'Moment';
   }
@@ -203,7 +212,8 @@ function Tools() {
           <PrimaryButton label="Back to our Moment" onPress={app.closeModal} />
         )}
         <SecondaryButton label="Preview Sunday reflection" onPress={() => app.openWeekly()} />
-        <SecondaryButton label="Preview welcome & pairing" onPress={() => app.setModal({ name: 'welcome' })} />
+        <SecondaryButton label="Replay introduction" onPress={app.openOnboarding} />
+        <SecondaryButton label="Preview the next-question wait" onPress={app.previewWait} />
         <QuietButton label="Reset all demo data" onPress={() => app.setModal({ name: 'reset' })} />
       </View>
     </View>
@@ -270,6 +280,7 @@ function PairForm() {
               setError('That sample code isn’t a match. Try MOMENT.');
               return;
             }
+            app.markPaired();
             app.setModal({ name: 'paired' });
           }}
         />
@@ -285,7 +296,7 @@ function Paired() {
       <View style={styles.art}>
         <Icon name="check" size={28} color="#8b91b7" />
       </View>
-      <Text style={styles.copyCenter}>Your sample couple is connected.{'\n'}Your first Moment is ready.</Text>
+      <Text style={styles.copyCenter}>You’re paired with {app.state?.partner}.{'\n'}{app.state ? catalog[app.state.index].partner : ''}</Text>
       <InsetNote>Demo preview only. Real pairing will connect two separate accounts.</InsetNote>
       <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
         <PrimaryButton label="Open our Moment" onPress={() => { app.closeModal(); app.goTab('today'); }} />
@@ -345,15 +356,15 @@ function Memory({ date }: { date: string }) {
   );
 }
 
-function TaskForm({ id, preset }: { id?: string; preset?: { title: string; owner: 'me' | 'us'; note: string } }) {
+function TaskForm({ id, preset }: { id?: string; preset?: { title: string; owner: 'me' | 'us'; note: string; due?: string } }) {
   const app = useApp();
   const existing = app.state?.todos.find((task) => task.id === id);
   const [title, setTitle] = useState(existing?.title ?? preset?.title ?? '');
   const [owner, setOwner] = useState<'me' | 'us'>(existing?.owner ?? preset?.owner ?? 'us');
-  const [due, setDue] = useState(existing?.due ?? '');
+  const [due, setDue] = useState(existing?.due ?? preset?.due ?? '');
   const [note, setNote] = useState(existing?.note ?? preset?.note ?? '');
   const [error, setError] = useState('');
-  const [showDate, setShowDate] = useState(!!existing?.due);
+  const [showDate, setShowDate] = useState(!!existing?.due || !!preset?.due);
   return (
     <View>
       <Text style={styles.copy}>A plan, a conversation, a personal intention. Keep it as small as you need.</Text>
@@ -405,6 +416,70 @@ function TaskForm({ id, preset }: { id?: string; preset?: { title: string; owner
           }}
         />
       </View>
+    </View>
+  );
+}
+
+function MoodCheck() {
+  const app = useApp();
+  const mood = app.state ? wellbeingFor(app.state).mood : '';
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={styles.copy}>One tap. It stays on this phone until you choose to share it.</Text>
+      {WELLBEING_MOODS.map((item) => (
+        <ChoiceButton key={item} label={item} selected={mood === item} onPress={() => app.setTodayMood(item)} />
+      ))}
+    </View>
+  );
+}
+
+function TogetherPick() {
+  const app = useApp();
+  const state = app.state;
+  if (!state) return null;
+  const open = state.todos.filter((task) => !task.done);
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={styles.copy}>Pick one for today, or add something small.</Text>
+      {open.map((task) => (
+        <ChoiceButton key={task.id} label={task.due === state.date ? `${task.title} · today` : task.title} selected={task.due === state.date} onPress={() => app.markForToday(task.id)} />
+      ))}
+      <View style={{ marginTop: 8 }}>
+        <PrimaryButton label="Add something small" onPress={() => app.setModal({ name: 'task', preset: { title: '', owner: 'us', note: '', due: state.date } })} />
+      </View>
+    </View>
+  );
+}
+
+function Reminders() {
+  const app = useApp();
+  const state = app.state;
+  if (!state) return null;
+  const [hours, minutes] = state.reminderTime.split(':').map((part) => Number(part) || 0);
+  const value = new Date();
+  value.setHours(hours, minutes, 0, 0);
+  return (
+    <View>
+      <Text style={styles.copy}>A time saved on this phone. No notification is sent yet.</Text>
+      {state.reminders || state.evening ? null : <Text style={styles.copy}>Turn one on, then pick a time.</Text>}
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Daily Moment</Text>
+        <Switch accessibilityLabel="Daily Moment reminder" value={state.reminders} onValueChange={() => app.toggleSetting('reminders')} trackColor={{ true: colors.primary, false: '#dfe2ed' }} />
+      </View>
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Evening nudge</Text>
+        <Switch accessibilityLabel="Evening nudge" value={state.evening} onValueChange={() => app.toggleSetting('evening')} trackColor={{ true: colors.primary, false: '#dfe2ed' }} />
+      </View>
+      <Text style={styles.copy}>Reminder time · {state.reminderTime}</Text>
+      <DateTimePicker
+        mode="time"
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        value={value}
+        onChange={(_event, date) => {
+          if (!date) return;
+          app.setReminderTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+        }}
+      />
     </View>
   );
 }

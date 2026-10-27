@@ -12,8 +12,15 @@ import {
   sharedDebrief,
   sharedWellbeing,
   shiftDay,
+  pickQuestion,
+  preferredDepth,
+  releaseDay,
+  repairDay,
+  repairTarget,
   streak,
+  streakInfo,
   submit,
+  waitOver,
   historyLines,
   normalizeState,
   setCheckInMood,
@@ -58,10 +65,101 @@ state = nextDay(state);
 eq(state.date, shiftDay(before, 1), 'next day advances');
 eq(state.answer, '', 'next day clears the answer');
 eq(state.partnerDone, false, 'next day clears partner');
+eq(state.partnerAnswered, false, 'a new day waits for both answers again');
 eq(streak(state), 7, 'streak holds after rollover');
 state = { ...state, date: shiftDay(state.date, 2), draft: 'After a missed day' };
 state = partnerCompletes(submit(state));
-eq(streak(state), 1, 'a missed day resets the next completed streak');
+eq(streak(state), 1, 'a second miss in the same week is not forgiven');
+eq(streakInfo(state).graceDate, null, 'an unbridged miss is not shown as grace');
+const sunday = partnerCompletes(submit({ ...initialState(new Date('2026-10-25T12:00:00')), draft: 'Sunday together' }));
+eq(streak(sunday), 7, 'both answers add today to the streak');
+eq(streakInfo(sunday).graceDate, null, 'an unbroken streak has no grace day');
+const kept = partnerCompletes(submit({
+  ...sunday,
+  date: '2026-10-27',
+  answer: '',
+  draft: 'After one missed day',
+  partnerDone: false,
+  revealed: false,
+  partnerAnswered: false,
+}));
+eq(streak(kept), 8, 'one missed day in the week is forgiven');
+eq(streakInfo(kept).graceDate, '2026-10-26', 'the forgiven day is the one we show');
+const wiped = partnerCompletes(submit({
+  ...kept,
+  date: '2026-10-30',
+  answer: '',
+  draft: 'Second gap',
+  partnerDone: false,
+  revealed: false,
+  partnerAnswered: false,
+}));
+eq(streak(wiped), 1, 'another miss in that week starts the streak over');
+const graceDays = ['2026-10-25', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-03'];
+const nextWeek = {
+  ...initialState(new Date('2026-11-03T12:00:00')),
+  date: '2026-11-03',
+  history: graceDays.map((date) => ({ date, index: 0, me: 'a', partner: 'b' })),
+};
+eq(streak(nextWeek), graceDays.length, 'each week forgives its own missed day');
+eq(streakInfo(nextWeek).graceDate, '2026-11-02', 'the latest grace day is the one on screen');
+eq(initialState().partner, 'Ben', 'sample partner is Ben');
+const unlocked = submit({ ...initialState(new Date('2026-10-25T12:00:00')), partnerAnswered: true, draft: 'I answered too' });
+eq(unlocked.partnerDone, true, 'answering after Ben unlocks the day');
+eq(streak(unlocked), 7, 'the shared streak counts that day');
+
+let rotation = { ...initialState(), askedIndexes: [] as number[], onboardingTags: [] as string[], focus: [] as string[], index: 0 };
+const picks: number[] = [];
+for (let i = 0; i < catalog.length; i += 1) {
+  const index = pickQuestion(rotation);
+  ok(!picks.includes(index), 'no repeat before the bank is exhausted');
+  picks.push(index);
+  rotation = { ...rotation, index, askedIndexes: [...rotation.askedIndexes, index] };
+}
+eq(new Set(picks).size, catalog.length, 'rotation covers every question once');
+const again = pickQuestion(rotation);
+ok(again !== rotation.index, 'after the bank is used, the question just shown stays out');
+eq(preferredDepth([0, 1]), 'deeper', 'two light questions lead to a deeper one');
+const depths = picks.slice(0, 15).map((index) => catalog[index].depth);
+let lightRun = 0;
+let ratioOk = true;
+for (const depth of depths) {
+  if (depth === 'light') lightRun += 1;
+  else {
+    if (lightRun > 2) ratioOk = false;
+    lightRun = 0;
+  }
+}
+ok(ratioOk, 'deeper questions arrive about every third pick');
+let weighted = { ...initialState(), askedIndexes: [] as number[], onboardingTags: ['distance'], focus: ['distance'], index: 0 };
+const weightedPicks: number[] = [];
+for (let i = 0; i < 3; i += 1) {
+  const index = pickQuestion(weighted);
+  weightedPicks.push(index);
+  weighted = { ...weighted, index, askedIndexes: [...weighted.askedIndexes, index] };
+}
+ok(weightedPicks.every((index) => catalog[index].tags.includes('distance')), 'chosen tags are picked before the rest');
+
+const savedAt = new Date('2026-10-25T12:00:00').getTime();
+let waiting = submit({ ...initialState(new Date('2026-10-25T12:00:00')), draft: 'A short note', answerSavedAt: 0 });
+waiting = { ...waiting, answerSavedAt: savedAt, waitHours: 24 };
+ok(!waitOver(waiting, savedAt + 23 * 60 * 60 * 1000), 'the reveal can still wait inside 24 hours');
+ok(waitOver(waiting, savedAt + 25 * 60 * 60 * 1000), 'after 24 hours the day can move on');
+const beforeRelease = streak(waiting);
+const released = releaseDay(waiting, savedAt + 25 * 60 * 60 * 1000);
+eq(streak(released), beforeRelease, 'a saved solo answer does not change the shared streak');
+eq(released.date, '2026-10-26', 'the next question opens after the wait');
+ok(released.answer === '', 'the new day starts unanswered');
+
+const repairBase = {
+  ...initialState(new Date('2026-10-27T18:00:00')),
+  date: '2026-10-27',
+  history: initialState(new Date('2026-10-27T18:00:00')).history.filter((item) => item.date !== '2026-10-26'),
+};
+eq(repairTarget(repairBase, new Date('2026-10-27T18:00:00')), '2026-10-26', 'yesterday is open to repair within 48 hours');
+const repaired = repairDay(repairBase, 'A kind note for yesterday', new Date('2026-10-27T18:00:00'));
+ok(repaired.history.some((item) => item.date === '2026-10-26' && item.repaired), 'yesterday’s answer is saved');
+ok(streak(repaired) > streak(repairBase), 'repairing yesterday keeps it in the streak');
 
 state = initialState(new Date('2026-10-25T12:00:00'));
 for (let i = 0; i < catalog.length; i += 1) {

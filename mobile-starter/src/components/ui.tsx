@@ -9,19 +9,12 @@ import { useApp } from '@/state/AppContext';
 export const momentLogo = require('../../assets/moment-logo.png');
 
 export function Header() {
-  const { state, storageOk, goTab, setModal } = useApp();
+  const { state, storageOk, goTab } = useApp();
   if (!state) return null;
   const me = state.me.trim().charAt(0).toUpperCase() || 'A';
-  const partner = state.partner.trim().charAt(0).toUpperCase() || 'J';
+  const partner = state.partner.trim().charAt(0).toUpperCase() || 'B';
   return (
     <View>
-      <View style={styles.demoBar}>
-        <View style={styles.demoDot} />
-        <Text style={styles.demoText}>SAMPLE DATA</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open demo controls" onPress={() => setModal({ name: 'tools' })} hitSlop={8}>
-          <Text style={styles.demoLink}>Demo controls</Text>
-        </Pressable>
-      </View>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="Moment home" onPress={() => goTab('today')}>
           <Image source={momentLogo} style={styles.logo} resizeMode="contain" accessibilityIgnoresInvertColors />

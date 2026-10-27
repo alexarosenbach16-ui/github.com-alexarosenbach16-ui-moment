@@ -4,12 +4,21 @@ import { AppState as AppLifecycle } from 'react-native';
 
 import { catalog } from '@/data/catalog';
 import {
+  addReaction,
   addSuggestion,
   applyFocus,
+  completeOnboarding,
+  dateKey,
+  daysBetween,
   initialState,
+  markPaired,
+  markTodoForToday,
   nextDay,
-  partnerCompletes,
+  partnerAnswers,
   partnerReflection,
+  releaseDay,
+  repairDay,
+  waitOver,
   revealReflection,
   saveDebrief,
   savePause,
@@ -82,7 +91,19 @@ type AppApi = {
   openPlan: (preset?: { title: string; owner: TaskOwner; note: string }) => void;
   openWeekly: (key?: string) => void;
   openHistory: () => void;
+  openOnboarding: () => void;
   setTodayMood: (mood: string) => void;
+  finishOnboarding: (input: { tags: string[]; name?: string }) => void;
+  markPaired: () => void;
+  setReminderTime: (value: string) => void;
+  setCancelReason: (reason: string) => void;
+  repairYesterday: (text: string) => void;
+  releaseToday: () => void;
+  previewWait: () => void;
+  addReaction: (date: string) => void;
+  markForToday: (id: string) => void;
+  dismissWelcome: () => void;
+  waitIsOver: boolean;
 };
 
 const Ctx = createContext<AppApi | null>(null);
@@ -140,8 +161,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready || !state || booted.current) return;
     booted.current = true;
-    if (state.tab !== 'today') router.replace(tabHref(state.tab));
-    if (!state.focusSetupSeen) setModal({ name: 'focus', first: true });
+    const today = dateKey(new Date());
+    if (!state.onboardingSeen) {
+      router.replace('/onboarding' as Href);
+      return;
+    }
+    if (daysBetween(state.lastOpened, today) >= 2 && state.welcomeBackFor !== today) {
+      router.replace('/welcome-back' as Href);
+      return;
+    }
+    setState((prev) => (prev ? { ...prev, lastOpened: today } : prev));
+    if (state.tab === 'us') router.replace('/us');
   }, [ready, state, router]);
 
   const showToast = (message: string) => {
@@ -162,7 +192,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setDraft = (value: string) => {
-    setState((prev) => (prev ? { ...prev, draft: value.slice(0, 1200) } : prev));
+    setState((prev) => (prev ? { ...prev, draft: value.slice(0, 140) } : prev));
   };
 
   const submitAnswer = () => {
@@ -177,10 +207,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const finishPartner = () => {
     const current = latest.current;
     if (!current) return;
-    const next = partnerCompletes(current);
+    const next = partnerAnswers(current);
     if (next === current) return;
     setState(next);
-    showToast('Demo: your partner finished. Your Moment is ready.');
+    showToast(next.answer ? `${next.partner} finished. Your reveal is ready.` : `${next.partner}’s waiting on you, takes 1 min.`);
   };
 
   const revealMoment = () => {
@@ -238,9 +268,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSundayPreview(false);
     setTodoFilter('all');
     setWellbeingDraft(null);
-    setModal({ name: 'focus', first: true });
-    router.navigate('/');
-    showToast('Demo reset. A fresh little start.');
+    setModal(null);
+    router.replace('/onboarding' as Href);
+    showToast('A fresh little start.');
   };
 
   const toggleFeatureAction = (id: string) => {
@@ -415,8 +445,73 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const current = latest.current;
     if (!current) return;
     const next = setCheckInMood(current, mood);
-    if (next !== current) setState(next);
+    if (next === current) return;
+    setState(next);
+    setModal(null);
   };
+
+  const finishOnboarding = (input: { tags: string[]; name?: string }) => {
+    setState((prev) => (prev ? completeOnboarding(prev, input) : prev));
+  };
+
+  const pairCouple = () => {
+    setState((prev) => (prev ? markPaired(prev) : prev));
+  };
+
+  const setReminderTime = (value: string) => {
+    if (!/^\d{2}:\d{2}$/.test(value)) return;
+    setState((prev) => (prev ? { ...prev, reminderTime: value, reminders: true } : prev));
+  };
+
+  const setCancelReason = (reason: string) => {
+    setState((prev) => (prev ? { ...prev, cancelReason: reason.slice(0, 80) } : prev));
+  };
+
+  const repairYesterday = (text: string) => {
+    const current = latest.current;
+    if (!current) return;
+    const next = repairDay(current, text);
+    if (next === current) return;
+    setState(next);
+    setModal(null);
+    showToast('Yesterday is part of your streak.');
+  };
+
+  const releaseToday = () => {
+    const current = latest.current;
+    if (!current) return;
+    const next = releaseDay(current);
+    if (next === current) return;
+    setState(next);
+    setModal(null);
+    showToast('A new question is ready.');
+  };
+
+  const previewWait = () => {
+    setState((prev) => (prev?.answer ? { ...prev, answerSavedAt: Date.now() - 25 * 60 * 60 * 1000 } : prev));
+    setModal(null);
+  };
+
+  const reactTo = (date: string) => {
+    setState((prev) => (prev ? addReaction(prev, date) : prev));
+  };
+
+  const markForToday = (id: string) => {
+    setState((prev) => (prev ? markTodoForToday(prev, id) : prev));
+    setModal(null);
+  };
+
+  const dismissWelcome = () => {
+    const today = dateKey(new Date());
+    setState((prev) => (prev ? { ...prev, lastOpened: today, welcomeBackFor: today } : prev));
+  };
+
+  const openOnboarding = () => {
+    setModal(null);
+    router.push('/onboarding' as Href);
+  };
+
+  const waitIsOver = state ? waitOver(state) : false;
 
   const api: AppApi = {
     ready,
@@ -467,7 +562,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     openPlan,
     openWeekly,
     openHistory,
+    openOnboarding,
     setTodayMood,
+    finishOnboarding,
+    markPaired: pairCouple,
+    setReminderTime,
+    setCancelReason,
+    repairYesterday,
+    releaseToday,
+    previewWait,
+    addReaction: reactTo,
+    markForToday,
+    dismissWelcome,
+    waitIsOver,
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

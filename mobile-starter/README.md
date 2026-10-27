@@ -1,8 +1,8 @@
 # Moment for iPhone
 
-Open Moment in the free **Expo Go** app. Two tabs: **Today** (the daily question, a mood check-in, and shared to-dos) and **Us** (profiles, pairing, and Settings). History lists past answers and check-ins, newest first, and opens from Settings. Your answers stay on the phone.
+Open Moment in the free **Expo Go** app. **Today** is three short steps (about a minute each): answer, mood, and one thing together. **Us** is profiles, pairing, and a short Settings list. History, reminders, and the other tools open from there.
 
-Sunday reflections, foundations, pause and reconnect, support phrases, planning, hangout debriefs, wellbeing, and the wearable preview stay in Settings. Their saved data is still there.
+The sample partner is Ben. One open day each week can stay in the streak as a grace day, and yesterday’s question can be answered within 48 hours if you want it counted. Moment Plus is a placeholder with a local cancel-reason list. No payments, and no push notifications (a real nudge needs a backend later).
 
 ## On each iPhone
 

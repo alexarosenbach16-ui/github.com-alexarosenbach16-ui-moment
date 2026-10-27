@@ -3,7 +3,7 @@
 ## Folders
 
 - moment-demo/: Complete working browser demo, including JavaScript source, CSS, HTML, logo, tests, documentation and Sites hosting configuration.
-- mobile-starter/: Expo Go app for iPhone. Two tabs, Today and Us, with History opened from Settings. Saved on the device.
+- mobile-starter/: Expo Go app for iPhone. Today is a three-step checklist. Us holds profiles, pairing, and Settings. Saved on the device.
 
 ## Run the working demo
 
@@ -21,7 +21,7 @@ Requires Node.js. From moment-demo/ run:
 
 ## Mobile app (Expo Go)
 
-The iPhone app lives in `mobile-starter/`. Today holds the daily question, a mood check-in, and the shared to-dos. Us holds profiles, pairing, and Settings. History, opened from Settings, lists past answers and check-ins by date. The other tools (Sunday reflections, foundations, pause and reconnect, support, planning, debriefs, wellbeing, and the wearable preview) open from Settings too. Their data and logic stay. Answers stay on the phone. Pairing and partner replies are still a local sample (the partner code is `MOMENT`).
+The iPhone app lives in `mobile-starter/`. Today is a short checklist: the daily question, a mood check-in, and one shared to-do, plus an invite until you pair. Us holds profiles, pairing, and five settings rows. History groups answers by month and opens a year recap. Questions rotate without repeats, lean toward the tags picked in onboarding, and mix lighter and deeper prompts. One open day each week can stay in the streak as a grace day. Yesterday’s question can be answered within 48 hours. The sample partner is Ben and the code is `MOMENT`. Answers stay on the phone.
 
 1. Install the free **Expo Go** app from the App Store. Use a current Expo Go, because this project is Expo SDK 58.
 2. On a computer, open `mobile-starter` and install dependencies with `npm ci` if you have not already.

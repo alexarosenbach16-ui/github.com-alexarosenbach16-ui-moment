@@ -28,11 +28,12 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: 'rgba(255,255,255,0.96)',
           borderTopColor: colors.line,
-          height: 58 + insets.bottom,
-          paddingTop: 6,
-          paddingBottom: Math.max(insets.bottom, 8),
+          height: 64 + Math.max(insets.bottom, 16),
+          paddingTop: 8,
+          paddingBottom: Math.max(insets.bottom, 16),
         },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+        tabBarItemStyle: { paddingTop: 2 },
       }}
     >
       {TABS.map((tab) => (
