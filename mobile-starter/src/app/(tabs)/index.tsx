@@ -31,6 +31,7 @@ export default function TodayScreen() {
   const repairDay = repairTarget(state);
   const saved = !!state.answer && !state.partnerDone;
   const waitingOnYou = state.partnerAnswered && !state.answer;
+  const inviteFirst = !state.paired && !waitingOnYou;
 
   return (
     <TabScreen>
@@ -51,13 +52,13 @@ export default function TodayScreen() {
 
         {waitingOnYou ? (
           <View style={styles.banner}>
-            <Text style={styles.bannerTitle}>{state.partner}’s waiting on you, takes 1 min</Text>
+            <Text style={styles.bannerTitle}>{state.partner}’s waiting on you · 1{'\u00A0'}min</Text>
             <PrimaryButton label="Answer" onPress={() => app.setModal({ name: 'moment' })} />
           </View>
         ) : null}
 
         {!state.paired ? (
-          <Pressable accessibilityRole="button" onPress={() => router.push('/invite')} style={[styles.card, !waitingOnYou && styles.primaryCard]}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/invite')} style={[styles.card, inviteFirst && styles.primaryCard]}>
             <Text style={styles.step}>Invite {state.partner}</Text>
             <Text style={styles.detail}>{state.partner} answered today’s question. Pair to see it.</Text>
             <View style={{ marginTop: 12 }}><PrimaryButton label={`Invite ${state.partner}`} onPress={() => router.push('/invite')} /></View>
@@ -96,11 +97,12 @@ export default function TodayScreen() {
           <Text style={styles.progress}>{doneCount} of 3 done</Text>
         )}
         <View style={styles.dots}>
-          {steps.map((step, index) => <View key={step.id} style={[styles.dot, step.done && styles.dotOn, index === next && styles.dotNext]} />)}
+          {steps.map((step, index) => <View key={step.id} style={[styles.dot, step.done && styles.dotOn, index === next && !waitingOnYou && !inviteFirst && styles.dotNext]} />)}
         </View>
 
         {steps.map((step, index) => {
-          const primary = index === next && doneCount < 3;
+          const primary = index === next && doneCount < 3 && !waitingOnYou && !inviteFirst;
+          const bannerOwnsAnswer = waitingOnYou && step.id === 'answer';
           if (step.done) {
             return (
               <Pressable key={step.id} accessibilityRole="button" onPress={step.open} style={styles.doneRow}>
@@ -116,7 +118,7 @@ export default function TodayScreen() {
             <View key={step.id} style={[styles.card, primary && styles.primaryCard]}>
               <Text style={styles.step}>{step.title}</Text>
               <Text style={styles.detail}>{step.detail}</Text>
-              {primary ? <View style={{ marginTop: 12 }}><PrimaryButton label={step.action} onPress={step.open} /></View> : (
+              {primary ? <View style={{ marginTop: 12 }}><PrimaryButton label={step.action} onPress={step.open} /></View> : bannerOwnsAnswer ? null : (
                 <Pressable accessibilityRole="button" onPress={step.open} style={styles.textBtn}><Text style={styles.textBtnLabel}>{step.action}</Text></Pressable>
               )}
             </View>
@@ -139,7 +141,7 @@ const styles = StyleSheet.create({
   grace: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.lavender, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 8 },
   graceText: { color: colors.ink, fontSize: 13, fontWeight: '600' },
   banner: { marginTop: 16, backgroundColor: colors.lavender, borderRadius: 18, padding: 16, gap: 10 },
-  bannerTitle: { fontFamily: serif, fontSize: 26, lineHeight: 32, color: colors.ink },
+  bannerTitle: { fontFamily: serif, fontSize: 22, lineHeight: 28, color: colors.ink },
   progress: { marginTop: 18, color: colors.ink, fontWeight: '600' },
   dots: { flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 8 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.line },

@@ -129,12 +129,13 @@ export function MiniAvatar({ letter, lilac = false }: { letter: string; lilac?: 
   );
 }
 
-export function ToastBanner() {
-  const { toast } = useApp();
+export function ToastBanner({ aboveSheet = false }: { aboveSheet?: boolean }) {
+  const { toast, modal } = useApp();
   const insets = useSafeAreaInsets();
   if (!toast) return null;
+  if (aboveSheet !== !!modal) return null;
   return (
-    <View pointerEvents="none" style={[styles.toast, { bottom: 76 + insets.bottom }]}>
+    <View pointerEvents="none" style={[styles.toast, aboveSheet ? { top: insets.top + 12 } : { bottom: 92 + insets.bottom }]}>
       <Text style={styles.toastText}>{toast}</Text>
     </View>
   );
@@ -250,6 +251,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     zIndex: 50,
+    elevation: 50,
   },
   toastText: { color: '#fff', textAlign: 'center', fontSize: 13, lineHeight: 18 },
 });

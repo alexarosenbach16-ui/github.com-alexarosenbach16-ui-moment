@@ -51,6 +51,7 @@ export default function HistoryScreen() {
           <Tag label="All" on={tag === ''} onPress={() => setTag('')} />
           {tags.map((item) => <Tag key={item} label={item} on={tag === item} onPress={() => setTag(item)} />)}
         </ScrollView>
+        {filtered.length === 0 ? <Text style={styles.empty}>Your Moments will gather here.</Text> : null}
         {[...groups.entries()].map(([month, items]) => (
           <View key={month}>
             <Text style={styles.month}>{month}</Text>
@@ -116,6 +117,7 @@ const styles = StyleSheet.create({
   tagOn: { backgroundColor: colors.lavender, borderColor: colors.lavender },
   tagText: { color: colors.muted },
   tagTextOn: { color: colors.ink, fontWeight: '700' },
+  empty: { color: colors.muted, fontSize: 15, marginTop: 8 },
   month: { marginTop: 8, marginBottom: 8, color: colors.muted, fontWeight: '700', letterSpacing: 0.4 },
   card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.line, padding: 14, marginBottom: 10 },
   date: { color: colors.muted, fontSize: 12, fontWeight: '600' },

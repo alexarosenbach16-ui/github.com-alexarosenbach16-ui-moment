@@ -55,7 +55,7 @@ export function HeartBurst({ extra = 0 }: { extra?: number }) {
   return (
     <View pointerEvents="none" style={styles.burst}>
       {floaters.map((value, index) => {
-        const translateY = value.interpolate({ inputRange: [0, 1], outputRange: [24, -70 - (index % 3) * 16] });
+        const translateY = value.interpolate({ inputRange: [0, 1], outputRange: [18, -36 - (index % 3) * 8] });
         const opacity = value.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] });
         const scale = value.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0.4, 1.15, 0.85] });
         return (
@@ -84,6 +84,6 @@ const styles = StyleSheet.create({
   cardLilac: { backgroundColor: colors.lavender },
   cardLabel: { fontSize: 11, letterSpacing: 0.6, color: colors.ink, fontWeight: '700', marginBottom: 6 },
   cardText: { fontFamily: serif, fontSize: 20, lineHeight: 26, color: colors.ink },
-  burst: { height: 86, alignItems: 'center', justifyContent: 'flex-end' },
-  heart: { position: 'absolute', bottom: 8, fontSize: 22, color: '#7d74b0' },
+  burst: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-end' },
+  heart: { position: 'absolute', bottom: 18, fontSize: 22, color: '#7d74b0' },
 });

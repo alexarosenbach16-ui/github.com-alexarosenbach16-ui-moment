@@ -124,11 +124,13 @@ function RevealPayoff({ prompt, mine, theirs, me, partner, same, record, date }:
   };
   return (
     <View>
-      <HeartBurst extra={hearts} />
       <Text style={styles.revealTitle}>You made time for each other.</Text>
       <Text style={styles.note}>{prompt}</Text>
-      <FlipAnswer label={me} text={mine} delay={80} />
-      <FlipAnswer label={partner} text={theirs} lilac delay={420} />
+      <View style={styles.revealStage}>
+        <FlipAnswer label={me} text={mine} delay={80} />
+        <FlipAnswer label={partner} text={theirs} lilac delay={420} />
+        <HeartBurst extra={hearts} />
+      </View>
       {same ? <Text style={styles.match}>A little match. You’re on the same page.</Text> : null}
       <View style={styles.reactRow}>
         <Pressable accessibilityRole="button" accessibilityLabel="Send a heart" onPress={() => { setHearts((count) => count + 1); app.addReaction(date); }} style={styles.heartButton}>
@@ -218,6 +220,7 @@ const styles = StyleSheet.create({
   pill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#edf4ef', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginTop: 8 },
   pillText: { color: '#73907e', fontSize: 11, fontWeight: '600' },
   revealTitle: { fontFamily: serif, fontSize: 28, lineHeight: 34, color: colors.ink, marginTop: 14 },
+  revealStage: { position: 'relative', overflow: 'hidden' },
   response: { backgroundColor: '#f2f5fd', borderRadius: 13, padding: 16, marginTop: 12, borderWidth: 1, borderColor: '#eaf0fc' },
   responseLilac: { backgroundColor: '#f5f1fc', borderColor: '#f0eafa' },
   responseLabel: { fontSize: 11, letterSpacing: 0.6, color: '#8190ad', fontWeight: '600', marginBottom: 6 },

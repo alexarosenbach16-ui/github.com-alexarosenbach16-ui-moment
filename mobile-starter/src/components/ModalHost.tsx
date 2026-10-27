@@ -296,7 +296,7 @@ function Paired() {
       <View style={styles.art}>
         <Icon name="check" size={28} color="#8b91b7" />
       </View>
-      <Text style={styles.copyCenter}>You’re paired with {app.state?.partner}.{'\n'}{app.state ? catalog[app.state.index].partner : ''}</Text>
+      <Text style={styles.copyCenter}>{app.state?.partner} already answered today, answer to unlock.</Text>
       <InsetNote>Demo preview only. Real pairing will connect two separate accounts.</InsetNote>
       <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
         <PrimaryButton label="Open our Moment" onPress={() => { app.closeModal(); app.goTab('today'); }} />
@@ -332,7 +332,7 @@ function Reset() {
   const app = useApp();
   return (
     <View>
-      <Text style={styles.copy}>This will clear names, answers, and settings from this phone, then restore the sample couple and memories.</Text>
+      <Text style={styles.copy}>This will clear names, answers, and settings from this phone, then restore the sample couple.</Text>
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <SecondaryButton label="Keep exploring" onPress={app.closeModal} />

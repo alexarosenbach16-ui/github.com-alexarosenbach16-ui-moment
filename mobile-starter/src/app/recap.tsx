@@ -28,7 +28,7 @@ export default function RecapScreen() {
       </View>
       <ScrollView contentContainerStyle={{ padding: 22, paddingBottom: insets.bottom + 24 }}>
         <Text style={styles.title}>Your year together</Text>
-        <Text style={styles.copy}>A look back at {year}. This is the screen we’d show before a yearly renewal later. Nothing is billed.</Text>
+        <Text style={styles.copy}>A look back at {year}.</Text>
         <Text style={styles.count}>{moments.length}</Text>
         <Text style={styles.label}>Moments shared</Text>
         <Text style={styles.heading}>Favorite tags</Text>
@@ -39,7 +39,9 @@ export default function RecapScreen() {
         {highlights.map((item) => (
           <View key={item.date} style={styles.card}>
             <Text style={styles.prompt}>{catalog[item.index]?.prompt}</Text>
+            <Text style={styles.who}>{state?.me}</Text>
             <Text style={styles.words}>{item.me}</Text>
+            <Text style={styles.who}>{state?.partner}</Text>
             <Text style={styles.words}>{item.partner}</Text>
           </View>
         ))}
@@ -61,5 +63,6 @@ const styles = StyleSheet.create({
   tag: { color: colors.ink, fontSize: 16, marginTop: 6 },
   card: { marginTop: 10, backgroundColor: colors.lavender, borderRadius: 16, padding: 14 },
   prompt: { fontFamily: serif, fontSize: 18, color: colors.ink },
-  words: { color: colors.ink, marginTop: 6 },
+  who: { color: colors.muted, fontSize: 12, fontWeight: '700', marginTop: 10 },
+  words: { color: colors.ink, marginTop: 2 },
 });

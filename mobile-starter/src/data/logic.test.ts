@@ -47,32 +47,37 @@ function ok(value: unknown, message: string) {
 }
 
 let state = initialState(new Date('2026-10-25T12:00:00'));
-eq(streak(state), 6, 'sample couple starts with six completed days');
+eq(streak(state), 0, 'a new couple starts with no shared days');
+ok(state.history.every((item) => item.index !== state.index), 'sample history does not repeat today’s question');
+for (const id of ['restart', 'communication', 'distance', 'everyday']) {
+  const focused = applyFocus(state, [id]);
+  ok(focused.history.every((item) => item.index !== focused.index), `${id} does not reuse today’s question in history`);
+}
 state = { ...state, draft: '   ' };
 eq(submit(state).answer, '', 'empty answers cannot submit');
 state = submit({ ...state, draft: 'A small, thoughtful thing.' });
-eq(streak(state), 6, 'one partner cannot increment the shared streak');
+eq(streak(state), 0, 'one partner cannot increment the shared streak');
 eq(state.answer, 'A small, thoughtful thing.', 'answer saved');
 state = partnerCompletes(state);
-eq(streak(state), 7, 'both partners complete the day');
+eq(streak(state), 1, 'both partners complete the day');
 const count = state.history.length;
 state = partnerCompletes(state);
 state = submit(state);
 eq(state.history.length, count, 'duplicate taps do not duplicate a memory');
-eq(streak(state), 7, 'duplicate completion does not increment the streak');
+eq(streak(state), 1, 'duplicate completion does not increment the streak');
 const before = state.date;
 state = nextDay(state);
 eq(state.date, shiftDay(before, 1), 'next day advances');
 eq(state.answer, '', 'next day clears the answer');
 eq(state.partnerDone, false, 'next day clears partner');
 eq(state.partnerAnswered, false, 'a new day waits for both answers again');
-eq(streak(state), 7, 'streak holds after rollover');
+eq(streak(state), 1, 'streak holds after rollover');
 state = { ...state, date: shiftDay(state.date, 2), draft: 'After a missed day' };
 state = partnerCompletes(submit(state));
 eq(streak(state), 1, 'a second miss in the same week is not forgiven');
 eq(streakInfo(state).graceDate, null, 'an unbridged miss is not shown as grace');
 const sunday = partnerCompletes(submit({ ...initialState(new Date('2026-10-25T12:00:00')), draft: 'Sunday together' }));
-eq(streak(sunday), 7, 'both answers add today to the streak');
+eq(streak(sunday), 1, 'both answers add today to the streak');
 eq(streakInfo(sunday).graceDate, null, 'an unbroken streak has no grace day');
 const kept = partnerCompletes(submit({
   ...sunday,
@@ -83,7 +88,7 @@ const kept = partnerCompletes(submit({
   revealed: false,
   partnerAnswered: false,
 }));
-eq(streak(kept), 8, 'one missed day in the week is forgiven');
+eq(streak(kept), 2, 'one missed day in the week is forgiven');
 eq(streakInfo(kept).graceDate, '2026-10-26', 'the forgiven day is the one we show');
 const wiped = partnerCompletes(submit({
   ...kept,
@@ -106,7 +111,7 @@ eq(streakInfo(nextWeek).graceDate, '2026-11-02', 'the latest grace day is the on
 eq(initialState().partner, 'Ben', 'sample partner is Ben');
 const unlocked = submit({ ...initialState(new Date('2026-10-25T12:00:00')), partnerAnswered: true, draft: 'I answered too' });
 eq(unlocked.partnerDone, true, 'answering after Ben unlocks the day');
-eq(streak(unlocked), 7, 'the shared streak counts that day');
+eq(streak(unlocked), 1, 'the shared streak counts that day');
 
 let rotation = { ...initialState(), askedIndexes: [] as number[], onboardingTags: [] as string[], focus: [] as string[], index: 0 };
 const picks: number[] = [];

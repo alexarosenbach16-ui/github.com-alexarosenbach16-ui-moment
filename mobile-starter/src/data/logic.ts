@@ -100,11 +100,7 @@ export function initialState(now = new Date()): AppState {
     welcomeBackFor: '',
     cancelReason: '',
     todos: [],
-    history: Array.from({ length: 6 }, (_, i) => {
-      const index = (i + 1) % catalog.length;
-      const item = catalog[index];
-      return { date: shiftDay(day, -i - 1), index, me: item.sample, partner: item.partner, reactions: 0 };
-    }),
+    history: [],
     selectedFeatures: [],
     reflections: {},
     pausePlan: null,
