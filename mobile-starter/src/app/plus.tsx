@@ -27,13 +27,7 @@ export default function PlusScreen() {
   const insets = useSafeAreaInsets();
   const saved = app.state?.cancelReason ?? '';
   const choice = app.state?.planChoice ?? '';
-  const coming = () => {
-    if (!choice) {
-      app.showToast('Choose yearly or monthly. Nothing is billed.');
-      return;
-    }
-    app.showToast('Coming soon. Nothing was charged.');
-  };
+  const plus = app.state?.isPlus ?? false;
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.bar}>
@@ -52,23 +46,27 @@ export default function PlusScreen() {
           <Text style={styles.priceValue}>$8.99</Text>
           <Text style={styles.priceNote}>per month, for the couple</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={coming} style={styles.soon}>
-          <Text style={styles.soonText}>Coming soon</Text>
+        <Pressable accessibilityRole="button" accessibilityState={{ disabled: !choice }} disabled={!choice} style={[styles.soon, !choice && styles.soonOff]}>
+          <Text style={[styles.soonText, !choice && styles.soonTextOff]}>Coming soon</Text>
         </Pressable>
         <Text style={styles.heading}>Free forever</Text>
         {FREE.map((item) => <Text key={item} style={styles.item}>• {item}</Text>)}
         <Text style={styles.heading}>Plus adds</Text>
         {ADDS.map((item) => <Text key={item} style={styles.item}>• {item}</Text>)}
-        <Text style={styles.heading}>Cancel plan</Text>
-        <Text style={styles.copy}>A practice screen. Your reason stays on this phone.</Text>
-        <View style={{ gap: 8, marginTop: 8 }}>
-          {REASONS.map((reason) => (
-            <Pressable key={reason} accessibilityRole="button" accessibilityState={{ selected: saved === reason }} onPress={() => app.setCancelReason(reason)} style={[styles.reason, saved === reason && styles.reasonOn]}>
-              <Text style={styles.reasonText}>{reason}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {saved ? <Text style={styles.saved}>Saved: {saved}. Nothing was charged.</Text> : null}
+        {plus ? (
+          <>
+            <Text style={styles.heading}>Cancel plan</Text>
+            <Text style={styles.copy}>A practice screen. Your reason stays on this phone.</Text>
+            <View style={{ gap: 8, marginTop: 8 }}>
+              {REASONS.map((reason) => (
+                <Pressable key={reason} accessibilityRole="button" accessibilityState={{ selected: saved === reason }} onPress={() => app.setCancelReason(reason)} style={[styles.reason, saved === reason && styles.reasonOn]}>
+                  <Text style={styles.reasonText}>{reason}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {saved ? <Text style={styles.saved}>Saved: {saved}. Nothing was charged.</Text> : null}
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -86,7 +84,9 @@ const styles = StyleSheet.create({
   priceValue: { fontFamily: serif, fontSize: 28, color: colors.ink },
   priceNote: { color: colors.muted, marginTop: 2 },
   soon: { marginTop: 16, minHeight: 48, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  soonOff: { backgroundColor: colors.line },
   soonText: { color: '#fff', fontWeight: '700' },
+  soonTextOff: { color: colors.muted },
   heading: { fontFamily: serif, fontSize: 26, color: colors.ink, marginTop: 24 },
   item: { color: colors.ink, fontSize: 15, lineHeight: 22, marginTop: 6 },
   reason: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 14 },

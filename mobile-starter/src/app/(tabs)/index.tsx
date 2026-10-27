@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
-import { PrimaryButton, TabScreen, TextField } from '@/components/ui';
+import { PrimaryButton, SecondaryButton, TabScreen, TextField } from '@/components/ui';
 import { catalog } from '@/data/catalog';
-import { prettyDate, repairTarget, streakInfo, todayTodo, waitOver, wellbeingFor } from '@/data/logic';
+import { daysTogetherLabel, prettyDate, repairTarget, streakInfo, todayTodo, waitOver, wellbeingFor } from '@/data/logic';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
 
@@ -34,7 +34,7 @@ export default function TodayScreen() {
   const repairDay = repairTarget(state);
   const saved = !!state.answer && !state.partnerDone;
   const waitingOnYou = state.partnerAnswered && !state.answer;
-  const inviteFirst = !state.paired && !waitingOnYou;
+  const unpaired = !state.paired;
 
   return (
     <TabScreen>
@@ -43,7 +43,7 @@ export default function TodayScreen() {
           <View>
             <Text style={styles.kicker}>{prettyDate(state.date, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
             <Text style={styles.streak}>{info.count}</Text>
-            <Text style={styles.streakLabel}>days together</Text>
+            <Text style={styles.streakLabel}>{info.count === 1 ? 'day together' : 'days together'}</Text>
           </View>
           {info.graceDate ? (
             <View style={styles.grace}>
@@ -53,15 +53,15 @@ export default function TodayScreen() {
           ) : null}
         </View>
 
-        {waitingOnYou ? (
+        {waitingOnYou && !unpaired ? (
           <View style={styles.banner}>
             <Text style={styles.bannerTitle}>{state.partner}’s waiting on you · 1{'\u00A0'}min</Text>
             <PrimaryButton label="Answer" onPress={() => app.setModal({ name: 'moment' })} />
           </View>
         ) : null}
 
-        {!state.paired ? (
-          <Pressable accessibilityRole="button" onPress={() => router.push('/invite')} style={[styles.card, inviteFirst && styles.primaryCard]}>
+        {unpaired ? (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/invite')} style={[styles.card, styles.primaryCard]}>
             <Text style={styles.step}>Invite {state.partner}</Text>
             <Text style={styles.detail}>{state.partner} answered today’s question. Pair to see it.</Text>
             <View style={{ marginTop: 12 }}><PrimaryButton label={`Invite ${state.partner}`} onPress={() => router.push('/invite')} /></View>
@@ -72,18 +72,18 @@ export default function TodayScreen() {
           <View style={styles.saved}>
             <Text style={styles.step}>Your answer is saved.</Text>
             <Text style={styles.detail}>{waitOver(state) ? 'You can open the next question.' : `${state.partner} can add an answer whenever. No rush.`}</Text>
-            {waitOver(state) ? <View style={{ marginTop: 12 }}><PrimaryButton label="Next question" onPress={app.releaseToday} /></View> : null}
+            {waitOver(state) ? <View style={{ marginTop: 12 }}>{unpaired ? <Pressable accessibilityRole="button" onPress={app.releaseToday} style={styles.textBtn}><Text style={styles.textBtnLabel}>Next question</Text></Pressable> : <PrimaryButton label="Next question" onPress={app.releaseToday} />}</View> : null}
           </View>
         ) : null}
 
         {repairDay ? (
-          <View style={styles.repair}>
+          <View style={styles.card}>
             <Text style={styles.step}>Yesterday’s question is still open.</Text>
             <Text style={styles.detail}>Answer it if you’d like it in your streak.</Text>
             {repairOpen ? (
               <View style={{ marginTop: 10, gap: 8 }}>
                 <TextField value={repairText} maxLength={80} placeholder="A few words" onChangeText={setRepairText} />
-                <PrimaryButton label="Save yesterday" onPress={() => app.repairYesterday(repairText)} />
+                <SecondaryButton label="Save yesterday" onPress={() => app.repairYesterday(repairText)} />
               </View>
             ) : (
               <Pressable accessibilityRole="button" onPress={() => setRepairOpen(true)} style={styles.textBtn}><Text style={styles.textBtnLabel}>Answer it</Text></Pressable>
@@ -92,20 +92,22 @@ export default function TodayScreen() {
         ) : null}
 
         {doneCount === 3 ? (
-          <LinearGradient colors={[colors.blue, colors.lavender]} style={styles.done}>
-            <Text style={styles.doneTitle}>You’re done for today</Text>
-            <Text style={styles.doneCopy}>{info.count} days together.</Text>
-          </LinearGradient>
+          unpaired ? <Text style={styles.progress}>You’re done for today</Text> : (
+            <LinearGradient colors={[colors.blue, colors.lavender]} style={styles.done}>
+              <Text style={styles.doneTitle}>You’re done for today</Text>
+              <Text style={styles.doneCopy}>{daysTogetherLabel(info.count)}.</Text>
+            </LinearGradient>
+          )
         ) : (
           <Text style={styles.progress}>{doneCount} of 3 done</Text>
         )}
         <View style={styles.dots}>
-          {steps.map((step, index) => <View key={step.id} style={[styles.dot, step.done && styles.dotOn, index === next && !waitingOnYou && !inviteFirst && styles.dotNext]} />)}
+          {steps.map((step, index) => <View key={step.id} style={[styles.dot, step.done && styles.dotOn, index === next && !waitingOnYou && !unpaired && styles.dotNext]} />)}
         </View>
 
         {steps.map((step, index) => {
-          const primary = index === next && doneCount < 3 && !waitingOnYou && !inviteFirst;
-          const bannerOwnsAnswer = waitingOnYou && step.id === 'answer';
+          const primary = index === next && doneCount < 3 && !waitingOnYou && !unpaired;
+          const bannerOwnsAnswer = waitingOnYou && !unpaired && step.id === 'answer';
           if (step.done) {
             return (
               <Pressable key={step.id} accessibilityRole="button" onPress={step.open} style={styles.doneRow}>
@@ -172,7 +174,6 @@ const styles = StyleSheet.create({
   check: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.lavender, alignItems: 'center', justifyContent: 'center' },
   doneLabel: { color: colors.ink, fontSize: 15, fontWeight: '600' },
   saved: { marginTop: 12, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: colors.line, padding: 16 },
-  repair: { marginTop: 12, backgroundColor: colors.lavender, borderRadius: 18, padding: 16 },
   textBtn: { minHeight: 40, justifyContent: 'center' },
   textBtnLabel: { color: colors.primary, fontWeight: '700' },
   extraTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },

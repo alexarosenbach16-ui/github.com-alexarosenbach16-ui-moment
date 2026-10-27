@@ -13,6 +13,7 @@ import {
   sharedWellbeing,
   shiftDay,
   acceptPairCode,
+  daysTogetherLabel,
   historyWindow,
   inviteLink,
   markPaired,
@@ -162,12 +163,15 @@ eq(streak(released), beforeRelease, 'a saved solo answer does not change the sha
 eq(released.date, '2026-10-26', 'the next question opens after the wait');
 ok(released.answer === '', 'the new day starts unanswered');
 
+eq(repairTarget(initialState(new Date('2026-10-27T18:00:00')), new Date('2026-10-27T18:00:00')), null, 'a new couple has no yesterday to repair');
+eq(daysTogetherLabel(1), '1 day together', 'one shared day stays singular');
+eq(daysTogetherLabel(2), '2 days together', 'more than one day stays plural');
 const repairBase = {
   ...initialState(new Date('2026-10-27T18:00:00')),
   date: '2026-10-27',
-  history: initialState(new Date('2026-10-27T18:00:00')).history.filter((item) => item.date !== '2026-10-26'),
+  history: [{ date: '2026-10-25', index: 0, me: 'a', partner: 'b' }],
 };
-eq(repairTarget(repairBase, new Date('2026-10-27T18:00:00')), '2026-10-26', 'yesterday is open to repair within 48 hours');
+eq(repairTarget(repairBase, new Date('2026-10-27T18:00:00')), '2026-10-26', 'a gap after a shared day can be repaired');
 const repaired = repairDay(repairBase, 'A kind note for yesterday', new Date('2026-10-27T18:00:00'));
 ok(repaired.history.some((item) => item.date === '2026-10-26' && item.repaired), 'yesterday’s answer is saved');
 ok(streak(repaired) > streak(repairBase), 'repairing yesterday keeps it in the streak');

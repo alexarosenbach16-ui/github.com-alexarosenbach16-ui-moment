@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
 import { PrimaryButton } from '@/components/ui';
-import { streakInfo } from '@/data/logic';
+import { daysTogetherLabel, streakInfo } from '@/data/logic';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
 
@@ -18,7 +18,7 @@ export default function WelcomeBackScreen() {
       <View style={styles.badge}><Icon name="heart" size={22} color={colors.primary} /></View>
       <Text style={styles.title}>Welcome back</Text>
       <Text style={styles.copy}>Your answers are right where you left them.</Text>
-      <Text style={styles.streak}>{info.count} days together</Text>
+      <Text style={styles.streak}>{daysTogetherLabel(info.count)}</Text>
       {info.graceDate ? <Text style={styles.grace}>A grace day is already keeping your place.</Text> : null}
       <View style={{ marginTop: 24 }}>
         <PrimaryButton label="See today" onPress={() => { app.dismissWelcome(); router.replace('/'); }} />

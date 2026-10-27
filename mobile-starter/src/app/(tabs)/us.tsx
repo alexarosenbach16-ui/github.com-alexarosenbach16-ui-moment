@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-nati
 
 import { Icon } from '@/components/Icon';
 import { TabScreen } from '@/components/ui';
-import { inviteLink, streak } from '@/data/logic';
+import { daysTogetherLabel, inviteLink, streak } from '@/data/logic';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
 
@@ -26,7 +26,7 @@ export default function UsScreen() {
             <View style={[styles.big, styles.overlap, { backgroundColor: colors.lavender }]}><Text style={styles.letter}>{state.partner.charAt(0).toUpperCase()}</Text></View>
           </View>
           <Text style={styles.names}>{state.me} & {state.partner}</Text>
-          <Text style={styles.meta}>{streak(state)} days together · {state.paired ? 'Paired' : 'Not paired yet'}</Text>
+          <Text style={styles.meta}>{daysTogetherLabel(streak(state))} · {state.paired ? 'Paired' : 'Not paired yet'}</Text>
         </View>
         <Text style={styles.group}>PAIRING</Text>
         <Row title={state.paired ? `Paired with ${state.partner}` : `Invite ${state.partner}`} detail={state.pairedWithCode ? `Joined with ${state.pairedWithCode}` : link} onPress={() => router.push('/invite')} />

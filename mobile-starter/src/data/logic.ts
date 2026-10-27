@@ -346,6 +346,10 @@ export function streak(state: AppState): number {
   return streakInfo(state).count;
 }
 
+export function daysTogetherLabel(count: number): string {
+  return count === 1 ? '1 day together' : `${count} days together`;
+}
+
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function inviteCodeFor(me: string, partner: string): string {
@@ -533,11 +537,15 @@ export function nextDay(state: AppState): AppState {
 }
 
 export function repairTarget(state: AppState, now = new Date()): string | null {
-  const done = new Set(state.history.filter((item) => item.me.trim() && item.partner.trim()).map((item) => item.date));
+  const shared = state.history.filter((item) => item.me.trim() && item.partner.trim());
+  const done = new Set(shared.map((item) => item.date));
   const nowMs = now.getTime();
   for (let back = 1; back <= 2; back += 1) {
     const day = shiftDay(state.date, -back);
     if (done.has(day)) continue;
+    const hadThisDay = state.history.some((item) => item.date === day);
+    const hadAnEarlierDay = shared.some((item) => item.date < day);
+    if (!hadThisDay && !hadAnEarlierDay) continue;
     const diff = nowMs - new Date(day + 'T12:00:00').getTime();
     if (diff >= 0 && diff <= state.repairHours * 60 * 60 * 1000) return day;
   }

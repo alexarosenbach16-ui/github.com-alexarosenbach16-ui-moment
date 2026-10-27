@@ -18,7 +18,7 @@ export default function HistoryScreen() {
   const [tag, setTag] = useState('');
   const windowed = state ? historyWindow(state) : { visible: [], older: [] };
   const shared = windowed.visible.filter((item) => item.me.trim());
-  const momentsShared = (state?.history ?? []).filter((item) => item.me.trim() && item.partner.trim()).length;
+  const momentsShared = windowed.visible.filter((item) => item.me.trim() && item.partner.trim()).length;
   const tags = useMemo(() => {
     const set = new Set<string>();
     for (const item of shared) for (const label of catalog[item.index]?.tags ?? []) set.add(label);

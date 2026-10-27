@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Share, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { FlipAnswer, HeartBurst, SealedCard } from '@/components/Reveal';
 import { ChoiceButton, PrimaryButton, SecondaryButton, TextField } from '@/components/ui';
 import { catalog } from '@/data/catalog';
-import { prettyDate, revealShareText, streak } from '@/data/logic';
+import { daysTogetherLabel, prettyDate, revealShareText, streak } from '@/data/logic';
 import type { HistoryItem } from '@/data/types';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
@@ -29,7 +29,7 @@ export function MomentFlow({ record }: { record?: HistoryItem }) {
       <View>
         <SealedCard title="Both answers are in." detail="Open them together." />
         <PrimaryButton label="Reveal our Moment" onPress={app.revealMoment} />
-        <Text style={styles.footer}>{streak(state)} days together.</Text>
+        <Text style={styles.footer}>{daysTogetherLabel(streak(state))}.</Text>
       </View>
     );
   }
@@ -153,9 +153,10 @@ function RevealPayoff({ prompt, mine, theirs, me, partner, same, record, date }:
           </View>
         ) : null}
       </View>
-      <Pressable accessibilityRole="button" accessibilityState={{ selected: includePartner }} onPress={() => setIncludePartner((value) => !value)} style={styles.hideRow}>
-        <Text style={styles.hideText}>{includePartner ? `Hide ${partner}’s answer` : `Include ${partner}’s answer`}</Text>
-      </Pressable>
+      <View style={styles.hideRow}>
+        <Text style={styles.hideText}>Hide {partner}’s answer</Text>
+        <Switch accessibilityLabel={`Hide ${partner}’s answer`} value={!includePartner} onValueChange={(hide) => setIncludePartner(!hide)} />
+      </View>
       <View style={{ marginTop: 12, gap: 10 }}>
         <PrimaryButton label="Share this Moment" icon="arrow" onPress={share} />
         {record ? (
@@ -164,7 +165,7 @@ function RevealPayoff({ prompt, mine, theirs, me, partner, same, record, date }:
           <SecondaryButton label="See our History" icon="arrow" onPress={() => { app.closeModal(); app.openHistory(); }} />
         )}
       </View>
-      {!record && app.state ? <Text style={styles.footer}>{streak(app.state)} days together.</Text> : null}
+      {!record && app.state ? <Text style={styles.footer}>{daysTogetherLabel(streak(app.state))}.</Text> : null}
     </View>
   );
 }
@@ -259,8 +260,8 @@ const styles = StyleSheet.create({
   shareSide: { borderRadius: 12, padding: 12, marginTop: 10 },
   shareWho: { fontSize: 11, fontWeight: '700', color: colors.ink },
   shareWords: { color: colors.ink, marginTop: 4, lineHeight: 20 },
-  hideRow: { minHeight: 44, justifyContent: 'center' },
-  hideText: { color: colors.primary, fontWeight: '700' },
+  hideRow: { minHeight: 52, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, borderRadius: 14, paddingHorizontal: 14 },
+  hideText: { flex: 1, color: colors.ink, fontSize: 16, fontWeight: '600' },
   modalNote: { textAlign: 'center', color: '#a1a7b7', fontSize: 12, lineHeight: 18, marginTop: 16 },
   strip: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, borderTopWidth: 1, borderTopColor: colors.line, marginTop: 18, paddingTop: 14 },
   status: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
