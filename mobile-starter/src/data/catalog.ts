@@ -401,18 +401,18 @@ export const ONBOARDING_QUESTIONS: { prompt: string; options: { id: string; labe
     prompt: 'What brings you here?',
     options: [
       { id: 'restart', label: 'Starting fresh' },
-      { id: 'communication', label: 'Finding our words' },
+      { id: 'communication', label: 'Strengthen our relationship' },
       { id: 'distance', label: 'Long distance' },
-      { id: 'everyday', label: 'Everyday closeness' },
+      { id: 'everyday', label: 'Feel closer day to day' },
     ],
   },
   {
-    prompt: 'How do you like to connect?',
+    prompt: 'What makes you feel most loved?',
     options: [
-      { id: 'voice', label: 'Voice notes' },
-      { id: 'text', label: 'Little texts' },
-      { id: 'time', label: 'Time together' },
-      { id: 'surprise', label: 'Small surprises' },
+      { id: 'voice', label: 'Kind words' },
+      { id: 'text', label: 'Sweet texts and calls' },
+      { id: 'time', label: 'Quality time' },
+      { id: 'surprise', label: 'Thoughtful surprises' },
     ],
   },
   {
