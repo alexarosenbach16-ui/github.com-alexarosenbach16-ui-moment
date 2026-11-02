@@ -4,12 +4,21 @@ import { AppState as AppLifecycle } from 'react-native';
 
 import { catalog } from '@/data/catalog';
 import {
+  addReaction,
   addSuggestion,
   applyFocus,
+  completeOnboarding,
+  dateKey,
+  daysBetween,
   initialState,
+  markPaired,
+  markTodoForToday,
   nextDay,
-  partnerCompletes,
+  partnerAnswers,
   partnerReflection,
+  releaseDay,
+  repairDay,
+  waitOver,
   revealReflection,
   saveDebrief,
   savePause,
@@ -27,7 +36,24 @@ import {
   withWellbeing,
 } from '@/data/logic';
 import type { AppState, DebriefAnswers, DebriefShare, ModalState, TabId, TaskOwner, Wellbeing } from '@/data/types';
+import { applyRemote, remoteUnchanged } from '@/data/remote';
 import { tabHref } from '@/navigation';
+import {
+  createCouple as createCoupleRemote,
+  currentUserId,
+  deleteAccount as deleteAccountRemote,
+  joinCouple as joinCoupleRemote,
+  pullSync,
+  pushAnswer,
+  pushMood,
+  pushTodo,
+  pushToggleTodo,
+  signOut as signOutRemote,
+  subscribeFlags,
+  unpairCouple,
+  updateProfileName,
+} from '@/services/cloud';
+import { isCloudConfigured } from '@/services/supabase';
 import { loadState, saveState } from '@/services/storage';
 
 type TaskInput = { id?: string; title: string; owner: string; due: string; note: string };
@@ -82,7 +108,32 @@ type AppApi = {
   openPlan: (preset?: { title: string; owner: TaskOwner; note: string }) => void;
   openWeekly: (key?: string) => void;
   openHistory: () => void;
+  openOnboarding: () => void;
   setTodayMood: (mood: string) => void;
+  finishOnboarding: (input: { tags: string[]; name?: string }) => void;
+  markPaired: (code?: string) => void;
+  setReminderTime: (value: string) => void;
+  setCancelReason: (reason: string) => void;
+  setPlanChoice: (choice: '' | 'year' | 'month') => void;
+  togglePlus: () => void;
+  saveAppreciation: (text: string) => void;
+  saveBonus: (text: string) => void;
+  repairYesterday: (text: string) => void;
+  releaseToday: () => void;
+  previewWait: () => void;
+  addReaction: (date: string) => void;
+  markForToday: (id: string) => void;
+  dismissWelcome: () => void;
+  waitIsOver: boolean;
+  cloud: boolean;
+  refreshCloud: () => Promise<void>;
+  noteSignedIn: (userId: string) => void;
+  saveCloudName: (name: string) => Promise<string | null>;
+  createCouple: () => Promise<string>;
+  joinCouple: (code: string) => Promise<string | null>;
+  signOut: () => Promise<void>;
+  unpair: () => Promise<void>;
+  deleteAccount: () => Promise<string | null>;
 };
 
 const Ctx = createContext<AppApi | null>(null);
@@ -109,12 +160,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    void loadState().then((result) => {
+    void (async () => {
+      const result = await loadState();
+      let next = result.state;
+      if (isCloudConfigured()) {
+        const userId = await currentUserId();
+        if (userId) {
+          const remote = await pullSync();
+          next = remote ? applyRemote(next, remote) : { ...next, userId };
+        } else {
+          next = { ...next, userId: '', coupleId: '', partnerLive: '' };
+        }
+      }
       if (cancelled) return;
-      setState(result.state);
+      setState(next);
       setStorageOk(result.ok);
       setReady(true);
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -140,9 +202,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready || !state || booted.current) return;
     booted.current = true;
-    if (state.tab !== 'today') router.replace(tabHref(state.tab));
-    if (!state.focusSetupSeen) setModal({ name: 'focus', first: true });
+    const today = dateKey(new Date());
+    if (!state.onboardingSeen || (isCloudConfigured() && !state.userId)) {
+      router.replace(state.userId ? ('/onboarding?step=name' as Href) : ('/onboarding' as Href));
+      return;
+    }
+    if (daysBetween(state.lastOpened, today) >= 2 && state.welcomeBackFor !== today) {
+      router.replace('/welcome-back' as Href);
+      return;
+    }
+    setState((prev) => (prev ? { ...prev, lastOpened: today } : prev));
+    if (state.tab === 'us') router.replace('/us');
   }, [ready, state, router]);
+
+  const refreshCloud = async () => {
+    if (!isCloudConfigured()) return;
+    const remote = await pullSync();
+    if (!remote) return;
+    setState((prev) => {
+      if (!prev) return prev;
+      const next = applyRemote(prev, remote);
+      return remoteUnchanged(prev, next) ? prev : next;
+    });
+  };
+
+  useEffect(() => {
+    if (!state?.userId) return;
+    const tick = () => {
+      void refreshCloud();
+    };
+    const timer = setInterval(tick, 15000);
+    const sub = AppLifecycle.addEventListener('change', (status) => {
+      if (status === 'active') tick();
+    });
+    const unsubscribe = subscribeFlags(state.coupleId, tick);
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+      unsubscribe();
+    };
+  }, [state?.userId, state?.coupleId]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -162,7 +261,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setDraft = (value: string) => {
-    setState((prev) => (prev ? { ...prev, draft: value.slice(0, 1200) } : prev));
+    setState((prev) => (prev ? { ...prev, draft: value.slice(0, 140) } : prev));
   };
 
   const submitAnswer = () => {
@@ -171,16 +270,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const next = submit(current);
     if (next === current) return;
     setState(next);
+    if (next.userId) {
+      void pushAnswer(next.date, next.answer).then((error) => {
+        if (error) showToast(error);
+        return refreshCloud();
+      });
+    }
     showToast('Your part is saved. A little moment, just for you two.');
   };
 
   const finishPartner = () => {
     const current = latest.current;
     if (!current) return;
-    const next = partnerCompletes(current);
+    const next = partnerAnswers(current);
     if (next === current) return;
     setState(next);
-    showToast('Demo: your partner finished. Your Moment is ready.');
+    showToast(next.answer ? `${next.partner} finished. Your reveal is ready.` : `${next.partner}’s waiting on you, takes 1 min.`);
   };
 
   const revealMoment = () => {
@@ -238,9 +343,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSundayPreview(false);
     setTodoFilter('all');
     setWellbeingDraft(null);
-    setModal({ name: 'focus', first: true });
-    router.navigate('/');
-    showToast('Demo reset. A fresh little start.');
+    setModal(null);
+    router.replace('/onboarding' as Href);
+    showToast('A fresh little start.');
   };
 
   const toggleFeatureAction = (id: string) => {
@@ -258,6 +363,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const result = saveTask(current, input);
     if (result.error) return result.error;
     setState(result.state);
+    if (result.state.userId && result.state.coupleId) {
+      void pushTodo({
+        id: input.id,
+        title: input.title,
+        note: input.note,
+        shared: input.owner !== 'me',
+        due: input.due,
+        done: false,
+      }).then((error) => {
+        if (error) showToast(error);
+        return refreshCloud();
+      });
+    }
     setTodoFilter('all');
     setModal(null);
     router.navigate('/');
@@ -271,6 +389,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const task = current.todos.find((item) => item.id === id);
     if (!task) return;
     setState(toggleTask(current, id));
+    if (current.userId) {
+      void pushToggleTodo(id).then((error) => {
+        if (error) showToast(error);
+        return refreshCloud();
+      });
+    }
     showToast(task.done ? 'Back on your list.' : 'A little step, taken.');
   };
 
@@ -309,6 +433,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!current || !wellbeingDraft) return;
     const next = withWellbeing(current, current.date, cloneWellbeing(wellbeingDraft));
     setState(next);
+    if (next.userId) {
+      void pushMood(next.date, wellbeingDraft.mood, wellbeingDraft.share.mood).then((error) => {
+        if (error) showToast(error);
+        return refreshCloud();
+      });
+    }
     setModal(null);
     const shared = wellbeingDraft.share;
     const any = (shared.mood && wellbeingDraft.mood) || (shared.need && wellbeingDraft.need.trim()) || (wellbeingDraft.device && (shared.sleep || shared.readiness));
@@ -319,7 +449,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const current = latest.current;
     if (!current) return;
     const w = wellbeingFor(current);
-    setState(withWellbeing(current, current.date, { ...w, share: { mood: false, need: false, sleep: false, readiness: false } }));
+    const cleared = withWellbeing(current, current.date, { ...w, share: { mood: false, need: false, sleep: false, readiness: false } });
+    setState(cleared);
+    if (current.userId) void pushMood(current.date, w.mood, false);
     setWellbeingDraft(null);
     setModal(null);
     showToast('All wellbeing items are private.');
@@ -415,8 +547,156 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const current = latest.current;
     if (!current) return;
     const next = setCheckInMood(current, mood);
-    if (next !== current) setState(next);
+    if (next === current) return;
+    setState(next);
+    if (next.userId) void pushMood(next.date, mood, false);
+    setModal(null);
   };
+
+  const finishOnboarding = (input: { tags: string[]; name?: string }) => {
+    setState((prev) => (prev ? completeOnboarding(prev, input) : prev));
+  };
+
+  const pairCouple = (code = '') => {
+    setState((prev) => (prev ? markPaired(prev, code) : prev));
+  };
+
+  const setPlanChoice = (choice: '' | 'year' | 'month') => {
+    setState((prev) => (prev ? { ...prev, planChoice: choice } : prev));
+  };
+
+  const togglePlus = () => {
+    const current = latest.current;
+    if (!current) return;
+    const isPlus = !current.isPlus;
+    setState({ ...current, isPlus });
+    showToast(isPlus ? 'Plus preview on. Just for this phone.' : 'Back to the free plan.');
+  };
+
+  const saveAppreciation = (text: string) => {
+    const value = text.trim().slice(0, 80);
+    if (!value) return;
+    setState((prev) => (prev ? { ...prev, appreciation: value } : prev));
+    setModal(null);
+  };
+
+  const saveBonus = (text: string) => {
+    const current = latest.current;
+    if (!current?.isPlus) return;
+    const value = text.trim().slice(0, 80);
+    if (!value) return;
+    setState({ ...current, bonusAnswer: value });
+    setModal(null);
+  };
+
+  const setReminderTime = (value: string) => {
+    if (!/^\d{2}:\d{2}$/.test(value)) return;
+    setState((prev) => (prev ? { ...prev, reminderTime: value, reminders: true } : prev));
+  };
+
+  const setCancelReason = (reason: string) => {
+    setState((prev) => (prev ? { ...prev, cancelReason: reason.slice(0, 80) } : prev));
+  };
+
+  const repairYesterday = (text: string) => {
+    const current = latest.current;
+    if (!current) return;
+    const next = repairDay(current, text);
+    if (next === current) return;
+    setState(next);
+    setModal(null);
+    showToast('Yesterday is part of your streak.');
+  };
+
+  const releaseToday = () => {
+    const current = latest.current;
+    if (!current) return;
+    const next = releaseDay(current);
+    if (next === current) return;
+    setState(next);
+    setModal(null);
+    showToast('A new question is ready.');
+  };
+
+  const previewWait = () => {
+    setState((prev) => (prev?.answer ? { ...prev, answerSavedAt: Date.now() - 25 * 60 * 60 * 1000 } : prev));
+    setModal(null);
+  };
+
+  const reactTo = (date: string) => {
+    setState((prev) => (prev ? addReaction(prev, date) : prev));
+  };
+
+  const markForToday = (id: string) => {
+    const current = latest.current;
+    setState((prev) => (prev ? markTodoForToday(prev, id) : prev));
+    const task = current?.todos.find((item) => item.id === id);
+    if (current?.userId && task) {
+      void pushTodo({ id, title: task.title, note: task.note, shared: task.owner === 'us', due: current.date, done: task.done }).then(() => refreshCloud());
+    }
+    setModal(null);
+  };
+
+  const noteSignedIn = (userId: string) => {
+    setState((prev) => (prev ? { ...prev, userId } : prev));
+  };
+
+  const saveCloudName = (name: string) => updateProfileName(name);
+
+  const createCouple = async () => {
+    const result = await createCoupleRemote();
+    if (result.error) return result.error;
+    await refreshCloud();
+    return '';
+  };
+
+  const joinCouple = async (code: string) => {
+    const error = await joinCoupleRemote(code);
+    if (error) return error;
+    await refreshCloud();
+    return null;
+  };
+
+  const leaveCloud = () => {
+    setState((prev) => (prev ? {
+      ...initialState(),
+      onboardingSeen: true,
+      onboardingTags: prev.onboardingTags,
+      reminderTime: prev.reminderTime,
+      me: prev.me,
+    } : prev));
+    router.replace('/auth' as Href);
+  };
+
+  const signOut = async () => {
+    await signOutRemote();
+    leaveCloud();
+  };
+
+  const unpair = async () => {
+    const error = await unpairCouple();
+    if (error) showToast(error);
+    await refreshCloud();
+  };
+
+  const deleteAccount = async () => {
+    const error = await deleteAccountRemote();
+    if (error) return error;
+    leaveCloud();
+    return null;
+  };
+
+  const dismissWelcome = () => {
+    const today = dateKey(new Date());
+    setState((prev) => (prev ? { ...prev, lastOpened: today, welcomeBackFor: today } : prev));
+  };
+
+  const openOnboarding = () => {
+    setModal(null);
+    router.push('/onboarding' as Href);
+  };
+
+  const waitIsOver = state ? waitOver(state) : false;
 
   const api: AppApi = {
     ready,
@@ -467,7 +747,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     openPlan,
     openWeekly,
     openHistory,
+    openOnboarding,
     setTodayMood,
+    finishOnboarding,
+    markPaired: pairCouple,
+    setReminderTime,
+    setCancelReason,
+    setPlanChoice,
+    togglePlus,
+    saveAppreciation,
+    saveBonus,
+    repairYesterday,
+    releaseToday,
+    previewWait,
+    addReaction: reactTo,
+    markForToday,
+    dismissWelcome,
+    waitIsOver,
+    cloud: isCloudConfigured(),
+    refreshCloud,
+    noteSignedIn,
+    saveCloudName,
+    createCouple,
+    joinCouple,
+    signOut,
+    unpair,
+    deleteAccount,
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

@@ -1,4 +1,5 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
@@ -7,7 +8,9 @@ import { ModalSheet } from '@/components/ModalSheet';
 import { MomentFlow } from '@/components/MomentFlow';
 import { ChoiceButton, ErrorText, FieldLabel, InsetNote, PrimaryButton, QuietButton, SecondaryButton, TextField } from '@/components/ui';
 import {
+  BONUS_PROMPTS,
   CONNECTION_LABELS,
+  DATE_IDEAS,
   DEBRIEF_FIELDS,
   FOCUS_OPTIONS,
   FOUNDATIONS,
@@ -18,8 +21,8 @@ import {
   WELLBEING_MOODS,
   catalog,
 } from '@/data/catalog';
-import { dateKey, debriefFields, prettyDate, reflectionRecord, sharedWellbeing, weekKey } from '@/data/logic';
-import type { Debrief, DebriefAnswers, DebriefShare, Wellbeing } from '@/data/types';
+import { acceptPairCode, dateKey, debriefFields, prettyDate, reflectionRecord, sharedWellbeing, weekKey, wellbeingFor } from '@/data/logic';
+import type { Debrief, DebriefAnswers, DebriefShare, PlusFeature, Wellbeing } from '@/data/types';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
 
@@ -45,7 +48,7 @@ export function ModalHost() {
       {modal.name === 'privacy' ? <Privacy /> : null}
       {modal.name === 'reset' ? <Reset /> : null}
       {modal.name === 'memory' ? <Memory date={modal.date} /> : null}
-      {modal.name === 'task' ? <TaskForm id={modal.id} preset={modal.preset} /> : null}
+      {modal.name === 'task' ? (state.isPlus ? <TaskForm id={modal.id} preset={modal.preset} /> : <PlusNote feature="todos" />) : null}
       {modal.name === 'support' ? <SupportForm /> : null}
       {modal.name === 'foundations' ? <Foundations /> : null}
       {modal.name === 'wellbeing' ? <WellbeingForm /> : null}
@@ -56,6 +59,13 @@ export function ModalHost() {
       {modal.name === 'weekly' ? <Weekly keyName={modal.key} /> : null}
       {modal.name === 'pause' ? <PauseForm /> : null}
       {modal.name === 'pause-preview' ? <PausePreview /> : null}
+      {modal.name === 'mood' ? <MoodCheck /> : null}
+      {modal.name === 'together' ? (state.isPlus ? <TogetherPick /> : <PlusNote feature="todos" />) : null}
+      {modal.name === 'appreciate' ? <Appreciate /> : null}
+      {modal.name === 'bonus' ? (state.isPlus ? <BonusPack /> : <PlusNote feature="packs" />) : null}
+      {modal.name === 'dates' ? (state.isPlus ? <DateIdeas /> : <PlusNote feature="dates" />) : null}
+      {modal.name === 'plus' ? <PlusNote feature={modal.feature} /> : null}
+      {modal.name === 'reminders' ? <Reminders /> : null}
     </ModalSheet>
   );
 }
@@ -106,6 +116,20 @@ function modalTitle(name: string, partner: string, custom?: string): string {
       return 'Pause & reconnect.';
     case 'pause-preview':
       return 'A little room to breathe.';
+    case 'mood':
+      return 'How are you feeling?';
+    case 'together':
+      return 'One thing together';
+    case 'appreciate':
+      return 'One thing you appreciated';
+    case 'bonus':
+      return 'Another Moment';
+    case 'dates':
+      return 'Date ideas';
+    case 'plus':
+      return 'Part of Moment Plus';
+    case 'reminders':
+      return 'Reminders';
     default:
       return 'Moment';
   }
@@ -203,7 +227,8 @@ function Tools() {
           <PrimaryButton label="Back to our Moment" onPress={app.closeModal} />
         )}
         <SecondaryButton label="Preview Sunday reflection" onPress={() => app.openWeekly()} />
-        <SecondaryButton label="Preview welcome & pairing" onPress={() => app.setModal({ name: 'welcome' })} />
+        <SecondaryButton label="Replay introduction" onPress={app.openOnboarding} />
+        <SecondaryButton label="Preview the next-question wait" onPress={app.previewWait} />
         <QuietButton label="Reset all demo data" onPress={() => app.setModal({ name: 'reset' })} />
       </View>
     </View>
@@ -266,10 +291,11 @@ function PairForm() {
         <PrimaryButton
           label="Connect sample couple"
           onPress={() => {
-            if (code.trim().toUpperCase() !== PAIR_CODE) {
-              setError('That sample code isn’t a match. Try MOMENT.');
+            if (!acceptPairCode(code)) {
+              setError('That code isn’t a match. Try MOMENT, or a personal code.');
               return;
             }
+            app.markPaired(code);
             app.setModal({ name: 'paired' });
           }}
         />
@@ -285,7 +311,7 @@ function Paired() {
       <View style={styles.art}>
         <Icon name="check" size={28} color="#8b91b7" />
       </View>
-      <Text style={styles.copyCenter}>Your sample couple is connected.{'\n'}Your first Moment is ready.</Text>
+      <Text style={styles.copyCenter}>{app.state?.partner} already answered today, answer to unlock.</Text>
       <InsetNote>Demo preview only. Real pairing will connect two separate accounts.</InsetNote>
       <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
         <PrimaryButton label="Open our Moment" onPress={() => { app.closeModal(); app.goTab('today'); }} />
@@ -321,7 +347,7 @@ function Reset() {
   const app = useApp();
   return (
     <View>
-      <Text style={styles.copy}>This will clear names, answers, and settings from this phone, then restore the sample couple and memories.</Text>
+      <Text style={styles.copy}>This will clear names, answers, and settings from this phone, then restore the sample couple.</Text>
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <SecondaryButton label="Keep exploring" onPress={app.closeModal} />
@@ -345,15 +371,15 @@ function Memory({ date }: { date: string }) {
   );
 }
 
-function TaskForm({ id, preset }: { id?: string; preset?: { title: string; owner: 'me' | 'us'; note: string } }) {
+function TaskForm({ id, preset }: { id?: string; preset?: { title: string; owner: 'me' | 'us'; note: string; due?: string } }) {
   const app = useApp();
   const existing = app.state?.todos.find((task) => task.id === id);
   const [title, setTitle] = useState(existing?.title ?? preset?.title ?? '');
   const [owner, setOwner] = useState<'me' | 'us'>(existing?.owner ?? preset?.owner ?? 'us');
-  const [due, setDue] = useState(existing?.due ?? '');
+  const [due, setDue] = useState(existing?.due ?? preset?.due ?? '');
   const [note, setNote] = useState(existing?.note ?? preset?.note ?? '');
   const [error, setError] = useState('');
-  const [showDate, setShowDate] = useState(!!existing?.due);
+  const [showDate, setShowDate] = useState(!!existing?.due || !!preset?.due);
   return (
     <View>
       <Text style={styles.copy}>A plan, a conversation, a personal intention. Keep it as small as you need.</Text>
@@ -405,6 +431,140 @@ function TaskForm({ id, preset }: { id?: string; preset?: { title: string; owner
           }}
         />
       </View>
+    </View>
+  );
+}
+
+const PLUS_NOTE: Record<PlusFeature, string> = {
+  todos: 'Shared to-dos are part of Moment Plus. One subscription covers both of you.',
+  packs: 'Bonus question packs are part of Moment Plus.',
+  dates: 'Date ideas are part of Moment Plus.',
+  recap: 'Your year together is part of Moment Plus.',
+  history: 'Older Moments are saved. Full History is part of Moment Plus.',
+  extra: 'Extra Moments are part of Moment Plus. Today’s question is still yours.',
+};
+
+function PlusNote({ feature }: { feature: PlusFeature }) {
+  const app = useApp();
+  const router = useRouter();
+  return (
+    <View style={{ gap: 12 }}>
+      <Text style={styles.copy}>{PLUS_NOTE[feature]}</Text>
+      <Text style={styles.copy}>Your daily Moment stays open.</Text>
+      <PrimaryButton label="See Moment Plus" onPress={() => { app.closeModal(); router.push('/plus'); }} />
+      <QuietButton label="Not now" onPress={app.closeModal} />
+    </View>
+  );
+}
+
+const APPRECIATION_CHIPS = ['You checked in', 'Your laugh', 'You made time'];
+
+function Appreciate() {
+  const app = useApp();
+  const [text, setText] = useState('');
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={styles.copy}>One small thing. About a minute.</Text>
+      {APPRECIATION_CHIPS.map((chip) => (
+        <ChoiceButton key={chip} label={chip} selected={false} onPress={() => app.saveAppreciation(chip)} />
+      ))}
+      <TextField value={text} maxLength={80} placeholder="Or a few words" onChangeText={setText} />
+      <PrimaryButton label="Save" disabled={!text.trim()} onPress={() => app.saveAppreciation(text)} />
+    </View>
+  );
+}
+
+function BonusPack() {
+  const app = useApp();
+  return (
+    <View style={{ gap: 14 }}>
+      <Text style={styles.copy}>A second question, only if you want one.</Text>
+      {BONUS_PROMPTS.map((item) => (
+        <View key={item.prompt} style={{ gap: 8 }}>
+          <Text style={styles.promptTitle}>{item.prompt}</Text>
+          {item.chips.map((chip) => (
+            <ChoiceButton key={chip} label={chip} selected={app.state?.bonusAnswer === chip} onPress={() => app.saveBonus(chip)} />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function DateIdeas() {
+  return (
+    <View style={{ gap: 10 }}>
+      <Text style={styles.copy}>A few easy ideas. Pick one when it sounds good.</Text>
+      {DATE_IDEAS.map((idea) => (
+        <View key={idea.title} style={styles.idea}>
+          <Text style={styles.promptTitle}>{idea.title}</Text>
+          <Text style={styles.copy}>{idea.note}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function MoodCheck() {
+  const app = useApp();
+  const mood = app.state ? wellbeingFor(app.state).mood : '';
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={styles.copy}>One tap. It stays on this phone until you choose to share it.</Text>
+      {WELLBEING_MOODS.map((item) => (
+        <ChoiceButton key={item} label={item} selected={mood === item} onPress={() => app.setTodayMood(item)} />
+      ))}
+    </View>
+  );
+}
+
+function TogetherPick() {
+  const app = useApp();
+  const state = app.state;
+  if (!state) return null;
+  const open = state.todos.filter((task) => !task.done);
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={styles.copy}>Pick one for today, or add something small.</Text>
+      {open.map((task) => (
+        <ChoiceButton key={task.id} label={task.due === state.date ? `${task.title} · today` : task.title} selected={task.due === state.date} onPress={() => app.markForToday(task.id)} />
+      ))}
+      <View style={{ marginTop: 8 }}>
+        <PrimaryButton label="Add something small" onPress={() => app.setModal({ name: 'task', preset: { title: '', owner: 'us', note: '', due: state.date } })} />
+      </View>
+    </View>
+  );
+}
+
+function Reminders() {
+  const app = useApp();
+  const state = app.state;
+  if (!state) return null;
+  const [hours, minutes] = state.reminderTime.split(':').map((part) => Number(part) || 0);
+  const value = new Date();
+  value.setHours(hours, minutes, 0, 0);
+  return (
+    <View>
+      <Text style={styles.copy}>A time saved on this phone. No notification is sent yet.</Text>
+      {state.reminders || state.evening ? null : <Text style={styles.copy}>Turn one on, then pick a time.</Text>}
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Daily Moment</Text>
+        <Switch accessibilityLabel="Daily Moment reminder" value={state.reminders} onValueChange={() => app.toggleSetting('reminders')} trackColor={{ true: colors.primary, false: '#dfe2ed' }} />
+      </View>
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Evening nudge</Text>
+        <Switch accessibilityLabel="Evening nudge" value={state.evening} onValueChange={() => app.toggleSetting('evening')} trackColor={{ true: colors.primary, false: '#dfe2ed' }} />
+      </View>
+      <Text style={styles.copy}>Reminder time · {state.reminderTime}</Text>
+      <DateTimePicker
+        mode="time"
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        value={value}
+        onChange={(_event, date) => {
+          if (!date) return;
+          app.setReminderTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+        }}
+      />
     </View>
   );
 }
@@ -854,6 +1014,8 @@ function ShareRow({ label, checked, disabled, onPress }: { label: string; checke
 
 const styles = StyleSheet.create({
   copy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 4 },
+  promptTitle: { fontFamily: serif, fontSize: 20, lineHeight: 26, color: colors.ink },
+  idea: { backgroundColor: colors.lavender, borderRadius: 14, padding: 14 },
   copyCenter: { color: colors.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginVertical: 12 },
   hint: { color: '#999db2', fontSize: 13, lineHeight: 19, marginTop: 12 },
   fine: { color: '#a0a6b6', fontSize: 12, marginTop: 8 },

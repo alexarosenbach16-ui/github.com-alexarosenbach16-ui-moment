@@ -1,8 +1,10 @@
 # Moment for iPhone
 
-Open Moment in the free **Expo Go** app. Two tabs: **Today** (the daily question, a mood check-in, and shared to-dos) and **Us** (profiles, pairing, and Settings). History lists past answers and check-ins, newest first, and opens from Settings. Your answers stay on the phone.
+Open Moment in the free **Expo Go** app. **Today** is three short steps (about a minute each): the daily question, a mood check-in, and one thing you appreciated. **Us** is profiles, pairing, and a short Settings list. History, reminders, and the other tools open from there.
 
-Sunday reflections, foundations, pause and reconnect, support phrases, planning, hangout debriefs, wellbeing, and the wearable preview stay in Settings. Their saved data is still there.
+The free plan keeps one Moment a day, the mood check-in, the shared streak, and the last 30 days of History. Older Moments stay saved. Moment Plus is a local preview for the couple: shared to-dos, bonus questions, date ideas, the year recap, full History, and extra Moments. Prices on that screen are a placeholder. Nothing is charged. A real nudge still needs a backend later.
+
+The sample partner is Ben. One open day each week can stay in the streak as a grace day, and yesterday’s question can be answered within 48 hours if you want it counted. Settings, More tools, includes a demo switch to preview Plus on this phone.
 
 ## On each iPhone
 
@@ -20,6 +22,8 @@ npx expo start --tunnel
 
 Scan the QR code with the iPhone camera, then open the link in Expo Go.
 
-Alexa and Ben can each do this on their own phone. Pairing is a preview: the sample code is `MOMENT`. Partner replies, reminders, and the Oura readings are samples. No account, message, or paid service is connected.
+Without Supabase keys, pairing is a preview: the sample code is `MOMENT`. Partner replies, reminders, and the Oura readings are samples.
+
+With `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`, two phones share a real couple. See `SETUP.md`. In the Supabase dashboard, open **Authentication → Providers → Email** and turn **Confirm email** off so a password sign-up can open a session immediately. Sign-up asks each person to confirm they are 18 or older.
 
 Names, daily Moments, check-ins, tasks, reflections, and sharing choices are saved with AsyncStorage and come back after the app restarts.

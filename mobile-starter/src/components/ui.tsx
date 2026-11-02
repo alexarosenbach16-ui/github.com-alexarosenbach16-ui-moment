@@ -9,19 +9,12 @@ import { useApp } from '@/state/AppContext';
 export const momentLogo = require('../../assets/moment-logo.png');
 
 export function Header() {
-  const { state, storageOk, goTab, setModal } = useApp();
+  const { state, storageOk, goTab } = useApp();
   if (!state) return null;
   const me = state.me.trim().charAt(0).toUpperCase() || 'A';
-  const partner = state.partner.trim().charAt(0).toUpperCase() || 'J';
+  const partner = state.partner.trim().charAt(0).toUpperCase() || 'B';
   return (
     <View>
-      <View style={styles.demoBar}>
-        <View style={styles.demoDot} />
-        <Text style={styles.demoText}>SAMPLE DATA</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open demo controls" onPress={() => setModal({ name: 'tools' })} hitSlop={8}>
-          <Text style={styles.demoLink}>Demo controls</Text>
-        </Pressable>
-      </View>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="Moment home" onPress={() => goTab('today')}>
           <Image source={momentLogo} style={styles.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
@@ -136,12 +129,13 @@ export function MiniAvatar({ letter, lilac = false }: { letter: string; lilac?: 
   );
 }
 
-export function ToastBanner() {
-  const { toast } = useApp();
+export function ToastBanner({ aboveSheet = false }: { aboveSheet?: boolean }) {
+  const { toast, modal } = useApp();
   const insets = useSafeAreaInsets();
   if (!toast) return null;
+  if (aboveSheet !== !!modal) return null;
   return (
-    <View pointerEvents="none" style={[styles.toast, { bottom: 76 + insets.bottom }]}>
+    <View pointerEvents="none" style={[styles.toast, aboveSheet ? { top: insets.top + 12 } : { bottom: 92 + insets.bottom }]}>
       <Text style={styles.toastText}>{toast}</Text>
     </View>
   );
@@ -257,6 +251,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     zIndex: 50,
+    elevation: 50,
   },
   toastText: { color: '#fff', textAlign: 'center', fontSize: 13, lineHeight: 18 },
 });
