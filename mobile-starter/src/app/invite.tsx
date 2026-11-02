@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +17,9 @@ export default function InviteScreen() {
   const code = app.state?.inviteCode ?? '';
   const link = inviteLink(code);
   const prompt = app.state ? catalog[app.state.index].prompt : '';
+  const cloud = app.cloud;
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
 
   const share = () => {
     void Share.share({ message: `Join me on Moment.\n${link}\nPairing code: ${code}` });
@@ -25,14 +29,29 @@ export default function InviteScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
       <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>Back</Text></Pressable>
       <Text style={styles.title}>Invite {partner}</Text>
-      <Text style={styles.copy}>{partner} answered today’s question. Pair to see it.</Text>
-      <Text style={styles.prompt}>{prompt}</Text>
-      <Text style={styles.linkLabel}>Your invite link</Text>
-      <Text style={styles.link}>{link}</Text>
-      <View style={styles.code}><Text style={styles.codeText}>{code}</Text></View>
-      <Text style={styles.note}>On this phone, the sample code MOMENT still pairs you.</Text>
+      <Text style={styles.copy}>{cloud ? 'One code for the two of you.' : `${partner} answered today’s question. Pair to see it.`}</Text>
+      {cloud ? null : <Text style={styles.prompt}>{prompt}</Text>}
+      {cloud && !app.state?.coupleId ? null : (
+        <>
+          <Text style={styles.linkLabel}>Your invite link</Text>
+          <Text style={styles.link}>{link}</Text>
+          <View style={styles.code}><Text style={styles.codeText}>{code}</Text></View>
+        </>
+      )}
+      {cloud ? null : <Text style={styles.note}>On this phone, the sample code MOMENT still pairs you.</Text>}
+      {error ? <Text style={styles.note}>{error}</Text> : null}
       <View style={{ gap: 10, marginTop: 16 }}>
-        <PrimaryButton label={`Text ${partner}`} onPress={share} />
+        {cloud && !app.state?.coupleId ? (
+          <PrimaryButton label={creating ? 'Creating' : 'Create our code'} onPress={() => {
+            setCreating(true);
+            void app.createCouple().then((message) => {
+              setCreating(false);
+              if (message) setError(message);
+            });
+          }} />
+        ) : (
+          <PrimaryButton label={`Text ${partner}`} onPress={share} />
+        )}
         <PrimaryButton label="Enter a code" onPress={() => router.push('/pair')} />
         <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.later}><Text style={styles.laterText}>Later</Text></Pressable>
       </View>

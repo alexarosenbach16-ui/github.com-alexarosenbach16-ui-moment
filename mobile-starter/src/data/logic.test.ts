@@ -116,6 +116,9 @@ const nextWeek = {
 eq(streak(nextWeek), graceDays.length, 'each week forgives its own missed day');
 eq(streakInfo(nextWeek).graceDate, '2026-11-02', 'the latest grace day is the one on screen');
 eq(initialState().partner, 'Ben', 'sample partner is Ben');
+const cloudOnly = submit({ ...initialState(new Date('2026-10-25T12:00:00')), userId: 'user-1', partnerAnswered: true, draft: 'hi there' });
+eq(cloudOnly.answer, 'hi there', 'a signed-in answer is saved on this phone');
+eq(cloudOnly.partnerDone, false, 'a signed-in answer does not invent the partner reply');
 const unlocked = submit({ ...initialState(new Date('2026-10-25T12:00:00')), partnerAnswered: true, draft: 'I answered too' });
 eq(unlocked.partnerDone, true, 'answering after Ben unlocks the day');
 eq(streak(unlocked), 1, 'the shared streak counts that day');

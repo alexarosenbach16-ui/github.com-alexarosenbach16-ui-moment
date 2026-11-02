@@ -16,7 +16,7 @@ export function MomentFlow({ record }: { record?: HistoryItem }) {
   if (!state) return null;
   const item = catalog[record?.index ?? state.index];
   const mine = record ? record.me : state.answer;
-  const theirs = record ? record.partner : item.partner;
+  const theirs = record ? record.partner : state.userId ? state.partnerLive : item.partner;
   const revealed = record ? true : state.revealed;
   const partnerDone = record ? true : state.partnerDone;
 
@@ -38,7 +38,8 @@ export function MomentFlow({ record }: { record?: HistoryItem }) {
     return (
       <View>
         <SealedCard title="Your answer is saved." detail={app.waitIsOver ? 'You can open the next question.' : `${state.partner} can add an answer whenever. No rush.`} />
-        {app.waitIsOver ? <PrimaryButton label="Next question" onPress={app.releaseToday} /> : <DemoHint text="This phone can pretend your partner is done." action={`${state.partner} finished`} onPress={app.partnerCompletes} />}
+        {app.waitIsOver && !state.userId ? <PrimaryButton label="Next question" onPress={app.releaseToday} /> : null}
+        {!state.userId && !app.waitIsOver ? <DemoHint text="This phone can pretend your partner is done." action={`${state.partner} finished`} onPress={app.partnerCompletes} /> : null}
       </View>
     );
   }
@@ -111,7 +112,7 @@ export function MomentFlow({ record }: { record?: HistoryItem }) {
         </View>
       ) : null}
       <PrimaryButton label={state.partnerAnswered ? 'Unlock our reveal' : item.type === 'Action' ? 'I did my part' : 'Save my answer'} disabled={needsDraft} onPress={app.submitAnswer} />
-      {!state.partnerAnswered ? <DemoHint text="Or let the sample partner go first." action={`${state.partner} finished`} onPress={app.partnerCompletes} /> : null}
+      {!state.userId && !state.partnerAnswered ? <DemoHint text="Or let the sample partner go first." action={`${state.partner} finished`} onPress={app.partnerCompletes} /> : null}
     </View>
   );
 }

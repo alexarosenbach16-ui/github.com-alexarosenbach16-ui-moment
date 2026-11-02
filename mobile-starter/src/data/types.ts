@@ -155,6 +155,10 @@ export type AppState = {
   appreciation: string;
   bonusAnswer: string;
   planChoice: '' | 'year' | 'month';
+  userId: string;
+  coupleId: string;
+  partnerLive: string;
+  partnerMood: string;
   todos: Task[];
   history: HistoryItem[];
   selectedFeatures: string[];

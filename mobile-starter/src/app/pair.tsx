@@ -18,6 +18,14 @@ export default function PairScreen() {
   const partner = app.state?.partner ?? 'Ben';
 
   const join = () => {
+    if (app.cloud) {
+      setError('');
+      void app.joinCouple(code).then((message) => {
+        if (message) setError(message);
+        else setDone(true);
+      });
+      return;
+    }
     if (!acceptPairCode(code)) {
       setError('Try MOMENT, or a personal code.');
       return;
@@ -32,7 +40,7 @@ export default function PairScreen() {
       {done ? (
         <View style={{ gap: 12, marginTop: 24 }}>
           <Text style={styles.title}>Paired with {partner}</Text>
-          <Text style={styles.copy}>{partner} already answered today, answer to unlock.</Text>
+          <Text style={styles.copy}>{app.cloud ? 'You’re paired. Today’s answers stay sealed until you both reply.' : `${partner} already answered today, answer to unlock.`}</Text>
           <PrimaryButton label="Back to today" onPress={() => router.replace('/')} />
         </View>
       ) : (

@@ -1,11 +1,12 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ONBOARDING_QUESTIONS } from '@/data/catalog';
 import { PrimaryButton, TextField } from '@/components/ui';
+import { isCloudConfigured } from '@/services/supabase';
 import { useApp } from '@/state/AppContext';
 import { colors, serif } from '@/theme';
 
@@ -19,6 +20,7 @@ export default function OnboardingScreen() {
   const app = useApp();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ step?: string }>();
   const [step, setStep] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [name, setName] = useState(app.state?.me ?? '');
@@ -26,6 +28,10 @@ export default function OnboardingScreen() {
   const reminderStep = questions + 1;
   const nameStep = questions + 2;
   const time = app.state?.reminderTime ?? '20:00';
+
+  useEffect(() => {
+    if (params.step === 'name') setStep(nameStep);
+  }, [params.step, nameStep]);
 
   const skip = () => {
     app.finishOnboarding({ tags });
@@ -41,8 +47,12 @@ export default function OnboardingScreen() {
   };
 
   const finish = () => {
-    app.finishOnboarding({ tags, name });
-    router.replace('/invite');
+    const chosen = tags.some(Boolean) ? tags : (app.state?.onboardingTags ?? []);
+    app.finishOnboarding({ tags: chosen, name });
+    void (async () => {
+      if (app.cloud) await app.saveCloudName(name);
+      router.replace('/invite');
+    })();
   };
 
   return (
@@ -53,6 +63,11 @@ export default function OnboardingScreen() {
           <Text style={styles.title}>Welcome</Text>
           <Text style={styles.copy}>Three small things, once a day. About a minute each.</Text>
           <PrimaryButton label="Get started" onPress={() => setStep(1)} />
+          {isCloudConfigured() ? (
+            <Pressable accessibilityRole="button" onPress={() => router.push('/auth')} style={styles.skip}>
+              <Text style={styles.skipText}>I already have an account</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
       {step > 0 && step <= questions ? (
@@ -89,7 +104,14 @@ export default function OnboardingScreen() {
               app.setReminderTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
             }}
           />
-          <PrimaryButton label="Continue" onPress={() => setStep(nameStep)} />
+          <PrimaryButton label="Continue" onPress={() => {
+            if (isCloudConfigured() && !app.state?.userId) {
+              app.finishOnboarding({ tags });
+              router.push('/auth');
+              return;
+            }
+            setStep(nameStep);
+          }} />
         </View>
       ) : null}
       {step === nameStep ? (

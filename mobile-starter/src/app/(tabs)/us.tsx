@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
@@ -11,6 +12,7 @@ export default function UsScreen() {
   const app = useApp();
   const router = useRouter();
   const state = app.state;
+  const [confirm, setConfirm] = useState<'out' | 'unpair' | 'delete' | ''>('');
   if (!app.ready || !state) return <View style={styles.fill} />;
   const link = inviteLink(state.inviteCode);
   const shareInvite = () => {
@@ -29,11 +31,13 @@ export default function UsScreen() {
           <Text style={styles.meta}>{daysTogetherLabel(streak(state))} · {state.paired ? 'Paired' : 'Not paired yet'}</Text>
         </View>
         <Text style={styles.group}>PAIRING</Text>
-        <Row title={state.paired ? `Paired with ${state.partner}` : `Invite ${state.partner}`} detail={state.pairedWithCode ? `Joined with ${state.pairedWithCode}` : link} onPress={() => router.push('/invite')} />
-        <Pressable accessibilityRole="button" onPress={shareInvite} style={styles.invite}>
-          <Text style={styles.rowTitle}>Your invite code {state.inviteCode}</Text>
-          <Text style={styles.rowDetail}>{link}</Text>
-        </Pressable>
+        <Row title={state.paired ? `Paired with ${state.partner}` : `Invite ${state.partner}`} detail={state.coupleId ? state.inviteCode : app.cloud ? 'Create or enter a code' : link} onPress={() => router.push('/invite')} />
+        {!app.cloud || state.coupleId ? (
+          <Pressable accessibilityRole="button" onPress={shareInvite} style={styles.invite}>
+            <Text style={styles.rowTitle}>Your invite code {state.inviteCode}</Text>
+            <Text style={styles.rowDetail}>{link}</Text>
+          </Pressable>
+        ) : null}
         <Text style={styles.group}>SETTINGS</Text>
         <View style={styles.list}>
           <Row title="History" detail="Answers, search, and your year" onPress={app.openHistory} />
@@ -41,6 +45,13 @@ export default function UsScreen() {
           <Row title="Edit names" detail="Yours and your partner’s" onPress={() => app.setModal({ name: 'edit' })} />
           <Row title="Privacy" detail="What stays on this phone" onPress={() => app.setModal({ name: 'privacy' })} />
           <Row title="More tools" detail="Reflections, focus, reset, and more" onPress={() => router.push('/more-tools')} />
+          {app.cloud ? (
+            <>
+              <Row title={confirm === 'out' ? 'Tap again to sign out' : 'Sign out'} detail="This phone forgets the session" onPress={() => { if (confirm === 'out') void app.signOut(); else setConfirm('out'); }} />
+              {state.coupleId ? <Row title={confirm === 'unpair' ? 'Tap again to unpair' : 'Unpair'} detail="You each keep your own answers" onPress={() => { if (confirm === 'unpair') { setConfirm(''); void app.unpair(); } else setConfirm('unpair'); }} /> : null}
+              <Row title={confirm === 'delete' ? 'Tap again to delete your account' : 'Delete account'} detail="Deletes your data" onPress={() => { if (confirm === 'delete') void app.deleteAccount(); else setConfirm('delete'); }} />
+            </>
+          ) : null}
         </View>
       </ScrollView>
     </TabScreen>

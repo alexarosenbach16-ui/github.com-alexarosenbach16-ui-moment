@@ -36,7 +36,24 @@ import {
   withWellbeing,
 } from '@/data/logic';
 import type { AppState, DebriefAnswers, DebriefShare, ModalState, TabId, TaskOwner, Wellbeing } from '@/data/types';
+import { applyRemote, remoteUnchanged } from '@/data/remote';
 import { tabHref } from '@/navigation';
+import {
+  createCouple as createCoupleRemote,
+  currentUserId,
+  deleteAccount as deleteAccountRemote,
+  joinCouple as joinCoupleRemote,
+  pullSync,
+  pushAnswer,
+  pushMood,
+  pushTodo,
+  pushToggleTodo,
+  signOut as signOutRemote,
+  subscribeFlags,
+  unpairCouple,
+  updateProfileName,
+} from '@/services/cloud';
+import { isCloudConfigured } from '@/services/supabase';
 import { loadState, saveState } from '@/services/storage';
 
 type TaskInput = { id?: string; title: string; owner: string; due: string; note: string };
@@ -108,6 +125,15 @@ type AppApi = {
   markForToday: (id: string) => void;
   dismissWelcome: () => void;
   waitIsOver: boolean;
+  cloud: boolean;
+  refreshCloud: () => Promise<void>;
+  noteSignedIn: (userId: string) => void;
+  saveCloudName: (name: string) => Promise<string | null>;
+  createCouple: () => Promise<string>;
+  joinCouple: (code: string) => Promise<string | null>;
+  signOut: () => Promise<void>;
+  unpair: () => Promise<void>;
+  deleteAccount: () => Promise<string | null>;
 };
 
 const Ctx = createContext<AppApi | null>(null);
@@ -134,12 +160,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    void loadState().then((result) => {
+    void (async () => {
+      const result = await loadState();
+      let next = result.state;
+      if (isCloudConfigured()) {
+        const userId = await currentUserId();
+        if (userId) {
+          const remote = await pullSync();
+          next = remote ? applyRemote(next, remote) : { ...next, userId };
+        } else {
+          next = { ...next, userId: '', coupleId: '', partnerLive: '' };
+        }
+      }
       if (cancelled) return;
-      setState(result.state);
+      setState(next);
       setStorageOk(result.ok);
       setReady(true);
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -167,7 +204,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     booted.current = true;
     const today = dateKey(new Date());
     if (!state.onboardingSeen) {
-      router.replace('/onboarding' as Href);
+      router.replace(state.userId ? ('/onboarding?step=name' as Href) : ('/onboarding' as Href));
+      return;
+    }
+    if (isCloudConfigured() && !state.userId) {
+      router.replace('/auth' as Href);
       return;
     }
     if (daysBetween(state.lastOpened, today) >= 2 && state.welcomeBackFor !== today) {
@@ -177,6 +218,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => (prev ? { ...prev, lastOpened: today } : prev));
     if (state.tab === 'us') router.replace('/us');
   }, [ready, state, router]);
+
+  const refreshCloud = async () => {
+    if (!isCloudConfigured()) return;
+    const remote = await pullSync();
+    if (!remote) return;
+    setState((prev) => {
+      if (!prev) return prev;
+      const next = applyRemote(prev, remote);
+      return remoteUnchanged(prev, next) ? prev : next;
+    });
+  };
+
+  useEffect(() => {
+    if (!state?.userId) return;
+    const tick = () => {
+      void refreshCloud();
+    };
+    const timer = setInterval(tick, 15000);
+    const sub = AppLifecycle.addEventListener('change', (status) => {
+      if (status === 'active') tick();
+    });
+    const unsubscribe = subscribeFlags(state.coupleId, tick);
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+      unsubscribe();
+    };
+  }, [state?.userId, state?.coupleId]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -205,6 +274,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const next = submit(current);
     if (next === current) return;
     setState(next);
+    if (next.userId) {
+      void pushAnswer(next.date, next.answer).then((error) => {
+        if (error) showToast(error);
+        return refreshCloud();
+      });
+    }
     showToast('Your part is saved. A little moment, just for you two.');
   };
 
@@ -292,6 +367,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const result = saveTask(current, input);
     if (result.error) return result.error;
     setState(result.state);
+    if (result.state.userId && result.state.coupleId) {
+      void pushTodo({
+        id: input.id,
+        title: input.title,
+        note: input.note,
+        shared: input.owner !== 'me',
+        due: input.due,
+        done: false,
+      }).then((error) => {
+        if (error) showToast(error);
+        return refreshCloud();
+      });
+    }
     setTodoFilter('all');
     setModal(null);
     router.navigate('/');
@@ -305,6 +393,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const task = current.todos.find((item) => item.id === id);
     if (!task) return;
     setState(toggleTask(current, id));
+    if (current.userId) {
+      void pushToggleTodo(id).then((error) => {
+        if (error) showToast(error);
+        return refreshCloud();
+      });
+    }
     showToast(task.done ? 'Back on your list.' : 'A little step, taken.');
   };
 
@@ -343,6 +437,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!current || !wellbeingDraft) return;
     const next = withWellbeing(current, current.date, cloneWellbeing(wellbeingDraft));
     setState(next);
+    if (next.userId) {
+      void pushMood(next.date, wellbeingDraft.mood, wellbeingDraft.share.mood).then((error) => {
+        if (error) showToast(error);
+        return refreshCloud();
+      });
+    }
     setModal(null);
     const shared = wellbeingDraft.share;
     const any = (shared.mood && wellbeingDraft.mood) || (shared.need && wellbeingDraft.need.trim()) || (wellbeingDraft.device && (shared.sleep || shared.readiness));
@@ -353,7 +453,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const current = latest.current;
     if (!current) return;
     const w = wellbeingFor(current);
-    setState(withWellbeing(current, current.date, { ...w, share: { mood: false, need: false, sleep: false, readiness: false } }));
+    const cleared = withWellbeing(current, current.date, { ...w, share: { mood: false, need: false, sleep: false, readiness: false } });
+    setState(cleared);
+    if (current.userId) void pushMood(current.date, w.mood, false);
     setWellbeingDraft(null);
     setModal(null);
     showToast('All wellbeing items are private.');
@@ -451,6 +553,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const next = setCheckInMood(current, mood);
     if (next === current) return;
     setState(next);
+    if (next.userId) void pushMood(next.date, mood, false);
     setModal(null);
   };
 
@@ -529,8 +632,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const markForToday = (id: string) => {
+    const current = latest.current;
     setState((prev) => (prev ? markTodoForToday(prev, id) : prev));
+    const task = current?.todos.find((item) => item.id === id);
+    if (current?.userId && task) {
+      void pushTodo({ id, title: task.title, note: task.note, shared: task.owner === 'us', due: current.date, done: task.done }).then(() => refreshCloud());
+    }
     setModal(null);
+  };
+
+  const noteSignedIn = (userId: string) => {
+    setState((prev) => (prev ? { ...prev, userId } : prev));
+  };
+
+  const saveCloudName = (name: string) => updateProfileName(name);
+
+  const createCouple = async () => {
+    const result = await createCoupleRemote();
+    if (result.error) return result.error;
+    await refreshCloud();
+    return '';
+  };
+
+  const joinCouple = async (code: string) => {
+    const error = await joinCoupleRemote(code);
+    if (error) return error;
+    await refreshCloud();
+    return null;
+  };
+
+  const leaveCloud = () => {
+    setState((prev) => (prev ? {
+      ...initialState(),
+      onboardingSeen: true,
+      onboardingTags: prev.onboardingTags,
+      reminderTime: prev.reminderTime,
+      me: prev.me,
+    } : prev));
+    router.replace('/auth' as Href);
+  };
+
+  const signOut = async () => {
+    await signOutRemote();
+    leaveCloud();
+  };
+
+  const unpair = async () => {
+    const error = await unpairCouple();
+    if (error) showToast(error);
+    await refreshCloud();
+  };
+
+  const deleteAccount = async () => {
+    const error = await deleteAccountRemote();
+    if (error) return error;
+    leaveCloud();
+    return null;
   };
 
   const dismissWelcome = () => {
@@ -611,6 +768,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     markForToday,
     dismissWelcome,
     waitIsOver,
+    cloud: isCloudConfigured(),
+    refreshCloud,
+    noteSignedIn,
+    saveCloudName,
+    createCouple,
+    joinCouple,
+    signOut,
+    unpair,
+    deleteAccount,
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

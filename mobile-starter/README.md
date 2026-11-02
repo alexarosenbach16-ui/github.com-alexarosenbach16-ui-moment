@@ -22,6 +22,8 @@ npx expo start --tunnel
 
 Scan the QR code with the iPhone camera, then open the link in Expo Go.
 
-Alexa and Ben can each do this on their own phone. Pairing is a preview: the sample code is `MOMENT`. Partner replies, reminders, and the Oura readings are samples. No account, message, or paid service is connected.
+Without Supabase keys, pairing is a preview: the sample code is `MOMENT`. Partner replies, reminders, and the Oura readings are samples.
+
+With `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`, two phones share a real couple. See `SETUP.md`. In the Supabase dashboard, open **Authentication → Providers → Email** and turn **Confirm email** off so a password sign-up can open a session immediately. Sign-up asks each person to confirm they are 18 or older.
 
 Names, daily Moments, check-ins, tasks, reflections, and sharing choices are saved with AsyncStorage and come back after the app restarts.

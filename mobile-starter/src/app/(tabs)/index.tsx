@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { PrimaryButton, SecondaryButton, TabScreen, TextField } from '@/components/ui';
@@ -16,6 +16,7 @@ export default function TodayScreen() {
   const state = app.state;
   const [repairText, setRepairText] = useState('');
   const [repairOpen, setRepairOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   if (!app.ready || !state) return <View style={styles.loading}><Text style={styles.word}>moment</Text></View>;
 
   const info = streakInfo(state);
@@ -26,7 +27,7 @@ export default function TodayScreen() {
     : { id: 'appreciate', title: 'Say one thing you appreciated', detail: state.appreciation ? 'Saved' : '~1 min', done: !!state.appreciation.trim(), action: 'Say it', open: () => app.setModal({ name: 'appreciate' }) };
   const steps = [
     { id: 'answer', title: 'Answer today’s question', detail: state.answer ? 'Saved' : '~1 min', done: !!state.answer, action: 'Answer', open: () => app.setModal({ name: 'moment' }) },
-    { id: 'mood', title: 'Check in your mood', detail: mood || 'One tap', done: !!mood, action: 'Check in', open: () => app.setModal({ name: 'mood' }) },
+    { id: 'mood', title: 'Check in your mood', detail: mood || (state.partnerMood ? `${state.partner} feels ${state.partnerMood}` : 'One tap'), done: !!mood, action: 'Check in', open: () => app.setModal({ name: 'mood' }) },
     third,
   ];
   const doneCount = steps.filter((step) => step.done).length;
@@ -38,7 +39,10 @@ export default function TodayScreen() {
 
   return (
     <TabScreen>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void app.refreshCloud().finally(() => setRefreshing(false)); }} />}
+      >
         <View style={styles.top}>
           <View>
             <Text style={styles.kicker}>{prettyDate(state.date, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
@@ -72,7 +76,7 @@ export default function TodayScreen() {
           <View style={styles.saved}>
             <Text style={styles.step}>Your answer is saved.</Text>
             <Text style={styles.detail}>{waitOver(state) ? 'You can open the next question.' : `${state.partner} can add an answer whenever. No rush.`}</Text>
-            {waitOver(state) ? <View style={{ marginTop: 12 }}>{unpaired ? <Pressable accessibilityRole="button" onPress={app.releaseToday} style={styles.textBtn}><Text style={styles.textBtnLabel}>Next question</Text></Pressable> : <PrimaryButton label="Next question" onPress={app.releaseToday} />}</View> : null}
+            {waitOver(state) && !state.userId ? <View style={{ marginTop: 12 }}>{unpaired ? <Pressable accessibilityRole="button" onPress={app.releaseToday} style={styles.textBtn}><Text style={styles.textBtnLabel}>Next question</Text></Pressable> : <PrimaryButton label="Next question" onPress={app.releaseToday} />}</View> : null}
           </View>
         ) : null}
 

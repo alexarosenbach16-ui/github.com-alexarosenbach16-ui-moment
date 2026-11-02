@@ -106,6 +106,10 @@ export function initialState(now = new Date()): AppState {
     appreciation: '',
     bonusAnswer: '',
     planChoice: '',
+    userId: '',
+    coupleId: '',
+    partnerLive: '',
+    partnerMood: '',
     todos: [],
     history: [],
     selectedFeatures: [],
@@ -299,6 +303,10 @@ export function normalizeState(raw: AppState): AppState {
     appreciation: typeof raw.appreciation === 'string' ? raw.appreciation.slice(0, 80) : '',
     bonusAnswer: typeof raw.bonusAnswer === 'string' ? raw.bonusAnswer.slice(0, 80) : '',
     planChoice: raw.planChoice === 'year' || raw.planChoice === 'month' ? raw.planChoice : '',
+    userId: typeof raw.userId === 'string' ? raw.userId : '',
+    coupleId: typeof raw.coupleId === 'string' ? raw.coupleId : '',
+    partnerLive: typeof raw.partnerLive === 'string' ? raw.partnerLive : '',
+    partnerMood: typeof raw.partnerMood === 'string' ? raw.partnerMood : '',
     history: raw.history.map((item) => ({ ...item, reactions: typeof item.reactions === 'number' ? item.reactions : 0, repaired: !!item.repaired })),
     focus,
     todos,
@@ -460,6 +468,8 @@ function rollForward(state: AppState): AppState {
     answerSavedAt: 0,
     appreciation: '',
     bonusAnswer: '',
+    partnerLive: '',
+    partnerMood: '',
     tab: 'today',
   };
   const index = pickQuestion(drafting);
@@ -486,6 +496,7 @@ export function submit(state: AppState): AppState {
   const answer = item.type === 'Action' && !state.draft.trim() ? item.sample : state.draft.trim();
   if (!answer) return state;
   const saved = { ...state, answer: answer.slice(0, 140), answerSavedAt: state.answerSavedAt || Date.now() };
+  if (saved.userId) return saved;
   return saved.partnerAnswered ? partnerCompletes(saved) : saved;
 }
 
