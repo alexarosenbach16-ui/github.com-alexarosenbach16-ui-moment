@@ -203,12 +203,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!ready || !state || booted.current) return;
     booted.current = true;
     const today = dateKey(new Date());
-    if (!state.onboardingSeen) {
+    if (!state.onboardingSeen || (isCloudConfigured() && !state.userId)) {
       router.replace(state.userId ? ('/onboarding?step=name' as Href) : ('/onboarding' as Href));
-      return;
-    }
-    if (isCloudConfigured() && !state.userId) {
-      router.replace('/auth' as Href);
       return;
     }
     if (daysBetween(state.lastOpened, today) >= 2 && state.welcomeBackFor !== today) {
